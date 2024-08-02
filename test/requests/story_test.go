@@ -9,6 +9,7 @@ import (
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/story"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
+	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure/sqlite"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -17,14 +18,14 @@ type StoryTestSuite struct {
 	suite.Suite
 	tx      *sql.Tx
 	clock   infrastructure.Clock
-	stories infrastructure.SqlStoryStore
+	stories sqlite.StoryStore
 }
 
 func (s *StoryTestSuite) SetupTest() {
 	tx := reset()
 	s.tx = tx
 	s.clock = infrastructure.Clock{}
-	s.stories = infrastructure.SqlStoryStore{Tx: tx}
+	s.stories = sqlite.StoryStore{Tx: tx}
 }
 
 func (s *StoryTestSuite) TearDownTest() {

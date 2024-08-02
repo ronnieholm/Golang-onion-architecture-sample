@@ -1,4 +1,4 @@
-package infrastructure
+package sqlite
 
 import (
 	"context"
@@ -10,13 +10,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	dseedwork "github.com/ronnieholm/golang-onion-architecture-sample/domain/seedwork"
 	"github.com/ronnieholm/golang-onion-architecture-sample/domain/story"
+	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
 )
 
-type SqlStoryStore struct {
+type StoryStore struct {
 	Tx *sql.Tx // TODO: is it allowed to copy the pointer? Otherwise use pointer receivers like for Mutex types
 }
 
-func (r SqlStoryStore) Exists(ctx context.Context, id story.StoryId) bool {
+func (r StoryStore) Exists(ctx context.Context, id story.StoryId) bool {
 	const sql = "select count(*) from stories where id = ?"
 	res := r.Tx.QueryRowContext(ctx, sql, id.Value)
 	count := -1
@@ -27,7 +28,7 @@ func (r SqlStoryStore) Exists(ctx context.Context, id story.StoryId) bool {
 	return count == 1
 }
 
-func (r SqlStoryStore) storiesToDomain(rows []getByIdRow) []story.Story {
+func (r StoryStore) storiesToDomain(rows []getByIdRow) []story.Story {
 	storyTasks := make(map[story.StoryId]map[story.TaskId]story.Task)
 	storyTasksOrder := make(map[story.StoryId][]story.TaskId, 0)
 	visitTask := func(storyId story.StoryId, r getByIdRow) {
@@ -185,7 +186,7 @@ func (r getByIdRow) parseStory(id story.StoryId) story.Story {
 	}
 }
 
-func (r SqlStoryStore) GetById(ctx context.Context, id story.StoryId) *story.Story {
+func (r StoryStore) GetById(ctx context.Context, id story.StoryId) *story.Story {
 	const sql = `
 		select s.id, s.title, s.description, s.created_at, s.updated_at,
                t.id, t.title, t.description, t.created_at, t.updated_at
@@ -210,7 +211,7 @@ func (r SqlStoryStore) GetById(ctx context.Context, id story.StoryId) *story.Sto
 	}
 }
 
-func (r SqlStoryStore) GetPaged(ctx context.Context, limit dseedwork.Limit, cursor *dseedwork.Cursor) dseedwork.Paged[story.Story] {
+func (r StoryStore) GetPaged(ctx context.Context, limit dseedwork.Limit, cursor *dseedwork.Cursor) dseedwork.Paged[story.Story] {
 	const sql = `
 		select s.id, s.title, s.description, s.created_at, s.updated_at,
                t.id, t.title, t.description, t.created_at, t.updated_at
@@ -220,7 +221,7 @@ func (r SqlStoryStore) GetPaged(ctx context.Context, limit dseedwork.Limit, curs
 		order by s.created_at
 		limit ?`
 
-	offset, err := cursorToOffset(cursor)
+	offset, err := infrastructure.CursorToOffset(cursor)
 	if err != nil {
 		panic(fmt.Errorf("invalid cursor %s: %w", cursor.Value, err))
 	}
@@ -242,14 +243,14 @@ func (r SqlStoryStore) GetPaged(ctx context.Context, limit dseedwork.Limit, curs
 
 	pageEndOffset := stories[len(stories)-1].CreatedAt.UnixNano()
 	globalEndOffset := getLargestCreatedAt("stories", r.Tx)
-	newCursor := offsetsToCursor(pageEndOffset, globalEndOffset)
+	newCursor := infrastructure.OffsetsToCursor(pageEndOffset, globalEndOffset)
 	return dseedwork.Paged[story.Story]{
 		Cursor: newCursor,
 		Items:  stories,
 	}
 }
 
-func (r SqlStoryStore) ApplyEvent(ctx context.Context, event any) {
+func (r StoryStore) ApplyEvent(ctx context.Context, event any) {
 	var (
 		aggregateId uuid.UUID
 		occuredAt   time.Time

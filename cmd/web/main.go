@@ -18,14 +18,15 @@ import (
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/story"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
+	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure/sqlite"
 )
 
 func NewServer(
 	/* logger, */
 	db *sql.DB,
 	clock *infrastructure.Clock,
-	storyStoreCreator func(*sql.Tx) *infrastructure.SqlStoryStore,
-	domainEventStore *infrastructure.SqlDomainEventStore,
+	storyStoreCreator func(*sql.Tx) *sqlite.StoryStore,
+	domainEventStore *sqlite.DomainEventStore,
 ) http.Handler {
 	mux := http.NewServeMux()
 	addRoutes(mux, db, clock, storyStoreCreator, domainEventStore)
@@ -105,8 +106,8 @@ func run(
 		/* config, */
 		db,
 		&infrastructure.Clock{},
-		func(tx *sql.Tx) *infrastructure.SqlStoryStore { return &infrastructure.SqlStoryStore{Tx: tx} },
-		&infrastructure.SqlDomainEventStore{},
+		func(tx *sql.Tx) *sqlite.StoryStore { return &sqlite.StoryStore{Tx: tx} },
+		&sqlite.DomainEventStore{},
 	)
 
 	httpServer := &http.Server{
@@ -145,8 +146,8 @@ func addRoutes(
 	mux *http.ServeMux,
 	db *sql.DB,
 	clock *infrastructure.Clock,
-	storyStoreCreator func(*sql.Tx) *infrastructure.SqlStoryStore,
-	domainEventStore *infrastructure.SqlDomainEventStore,
+	storyStoreCreator func(*sql.Tx) *sqlite.StoryStore,
+	domainEventStore *sqlite.DomainEventStore,
 ) {
 	// TODO: How to only apply middleware at select routes? Move routes from other function?
 
@@ -199,7 +200,7 @@ type StoryCreateResponse struct {
 	Id string `json:"id"`
 }
 
-func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreator func(*sql.Tx) *infrastructure.SqlStoryStore) http.Handler {
+func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreator func(*sql.Tx) *sqlite.StoryStore) http.Handler {
 	// TODO: temporary. Call function with request to parse identity.
 	identity := seedwork.ScrumIdentityAuthenticated{
 		UserId: "123",
@@ -301,7 +302,7 @@ func handleStoryPaged() http.Handler {
 	})
 }
 
-func handleDomainEventsPaged(_ *sql.DB, _ *infrastructure.SqlDomainEventStore) http.Handler {
+func handleDomainEventsPaged(_ *sql.DB, _ *sqlite.DomainEventStore) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		w.Write([]byte("Id: " + id))

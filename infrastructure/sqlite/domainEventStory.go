@@ -1,20 +1,20 @@
-package infrastructure
+package sqlite
 
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
 	dseedwork "github.com/ronnieholm/golang-onion-architecture-sample/domain/seedwork"
+	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
 )
 
-type SqlDomainEventStore struct {
+type DomainEventStore struct {
 	Tx *sql.Tx
 }
 
-func (r SqlDomainEventStore) GetByAggregateId(ctx context.Context, id uuid.UUID, limit dseedwork.Limit, cursor *dseedwork.Cursor) dseedwork.Paged[seedwork.PersistedDomainEvent] {
+func (r DomainEventStore) GetByAggregateId(ctx context.Context, id uuid.UUID, limit dseedwork.Limit, cursor *dseedwork.Cursor) dseedwork.Paged[seedwork.PersistedDomainEvent] {
 	const sql = `
 		select id, aggregate_id, aggregate_type, event_type, event_payload, created_at
 		from domain_events
@@ -23,7 +23,7 @@ func (r SqlDomainEventStore) GetByAggregateId(ctx context.Context, id uuid.UUID,
 		order by created_at
 		limit ?`
 
-	offset, err := cursorToOffset(cursor)
+	offset, err := infrastructure.CursorToOffset(cursor)
 	if err != nil {
 		panic(err)
 	}
@@ -72,15 +72,9 @@ func (r SqlDomainEventStore) GetByAggregateId(ctx context.Context, id uuid.UUID,
 
 	pageEndOffset := events[len(events)-1].CreatedAt.UnixNano()
 	globalEndOffset := getLargestCreatedAt("domain_events", r.Tx)
-	newCursor := offsetsToCursor(pageEndOffset, globalEndOffset)
+	newCursor := infrastructure.OffsetsToCursor(pageEndOffset, globalEndOffset)
 	return dseedwork.Paged[seedwork.PersistedDomainEvent]{
 		Cursor: newCursor,
 		Items:  events,
 	}
-}
-
-type Clock struct{}
-
-func (c Clock) UtcNow() time.Time {
-	return time.Now().UTC()
 }

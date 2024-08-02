@@ -11,6 +11,7 @@ import (
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/domainEvent"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
+	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure/sqlite"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -19,16 +20,16 @@ type DomainEventTestSuite struct {
 	suite.Suite
 	tx      *sql.Tx
 	clock   infrastructure.Clock
-	stories infrastructure.SqlStoryStore
-	events  infrastructure.SqlDomainEventStore
+	stories sqlite.StoryStore
+	events  sqlite.DomainEventStore
 }
 
 func (s *DomainEventTestSuite) SetupTest() {
 	tx := reset()
 	s.tx = tx
 	s.clock = infrastructure.Clock{}
-	s.stories = infrastructure.SqlStoryStore{Tx: tx}
-	s.events = infrastructure.SqlDomainEventStore{Tx: tx}
+	s.stories = sqlite.StoryStore{Tx: tx}
+	s.events = sqlite.DomainEventStore{Tx: tx}
 }
 
 func (s *DomainEventTestSuite) TearDownTest() {
