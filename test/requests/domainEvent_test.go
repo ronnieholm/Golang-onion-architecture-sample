@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ronnieholm/golang-onion-architecture-sample/application/domainEventRequest"
+	"github.com/ronnieholm/golang-onion-architecture-sample/application/domainEvent"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
 	"github.com/stretchr/testify/require"
@@ -41,7 +41,7 @@ func (s *DomainEventTestSuite) TearDownTest() {
 func (s *DomainEventTestSuite) TestMustHaveAdminRoleToQueryDomainEvents() {
 	require := require.New(s.T())
 	ctx := context.Background()
-	_, err := domainEventRequest.GetByAggregateIdQuery{Id: missingId(), Limit: 5, Cursor: nil}.Run(ctx, memberIdentity, s.events)
+	_, err := domainEvent.GetByAggregateIdQuery{Id: missingId(), Limit: 5, Cursor: nil}.Run(ctx, memberIdentity, s.events)
 	require.ErrorAs(err, &seedwork.ErrAuthorization)
 	authErr := err.(seedwork.AuthorizationError)
 	require.Equal(authErr.Role, seedwork.ScrumRoleAdmin)
@@ -65,11 +65,11 @@ func (s *DomainEventTestSuite) TestGetByAggregateIdPaged() {
 		cmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	}
 
-	page1, err := domainEventRequest.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: nil}.Run(ctx, adminIdentity, s.events)
+	page1, err := domainEvent.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: nil}.Run(ctx, adminIdentity, s.events)
 	require.NoError(err)
-	page2, err := domainEventRequest.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: page1.Cursor}.Run(ctx, adminIdentity, s.events)
+	page2, err := domainEvent.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: page1.Cursor}.Run(ctx, adminIdentity, s.events)
 	require.NoError(err)
-	page3, err := domainEventRequest.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: page2.Cursor}.Run(ctx, adminIdentity, s.events)
+	page3, err := domainEvent.GetByAggregateIdQuery{Id: cmd.Id, Limit: 5, Cursor: page2.Cursor}.Run(ctx, adminIdentity, s.events)
 	require.NoError(err)
 
 	require.Equal(5, len(page1.Items))

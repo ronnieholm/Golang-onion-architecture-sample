@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
-	"github.com/ronnieholm/golang-onion-architecture-sample/application/storyRequest"
+	"github.com/ronnieholm/golang-onion-architecture-sample/application/story"
 )
 
 // TODO: rename to admin and member? Rename UserId to ID?
@@ -13,27 +13,27 @@ import (
 var adminIdentity = seedwork.ScrumIdentityAuthenticated{UserId: "123", Roles: []seedwork.ScrumRole{seedwork.ScrumRoleAdmin}}
 var memberIdentity = seedwork.ScrumIdentityAuthenticated{UserId: "123", Roles: []seedwork.ScrumRole{seedwork.ScrumRoleMember}}
 
-func captureBasicStoryDetailsCommand() storyRequest.CaptureBasicStoryDetailsCommand {
+func captureBasicStoryDetailsCommand() story.CaptureBasicStoryDetailsCommand {
 	description := "description"
-	return storyRequest.CaptureBasicStoryDetailsCommand{
+	return story.CaptureBasicStoryDetailsCommand{
 		Id:          uuid.New(),
 		Title:       "title",
 		Description: &description,
 	}
 }
 
-func reviseBasicStoryDetailsCommand(storyId uuid.UUID) storyRequest.ReviseBasicStoryDetailsCommand {
+func reviseBasicStoryDetailsCommand(storyId uuid.UUID) story.ReviseBasicStoryDetailsCommand {
 	description := "description1"
-	return storyRequest.ReviseBasicStoryDetailsCommand{
+	return story.ReviseBasicStoryDetailsCommand{
 		Id:          storyId,
 		Title:       "title1",
 		Description: &description,
 	}
 }
 
-func addBasicTaskDetailsToStoryCommand(storyId uuid.UUID) storyRequest.AddBasicTaskDetailsToStoryCommand {
+func addBasicTaskDetailsToStoryCommand(storyId uuid.UUID) story.AddBasicTaskDetailsToStoryCommand {
 	description := "description"
-	return storyRequest.AddBasicTaskDetailsToStoryCommand{
+	return story.AddBasicTaskDetailsToStoryCommand{
 		StoryId:     storyId,
 		TaskId:      uuid.New(),
 		Title:       "title",
@@ -41,9 +41,9 @@ func addBasicTaskDetailsToStoryCommand(storyId uuid.UUID) storyRequest.AddBasicT
 	}
 }
 
-func reviseBasicTaskDetailsCommand(storyId, taskId uuid.UUID) storyRequest.ReviseBasicTaskDetailsCommand {
+func reviseBasicTaskDetailsCommand(storyId, taskId uuid.UUID) story.ReviseBasicTaskDetailsCommand {
 	description := "description1"
-	return storyRequest.ReviseBasicTaskDetailsCommand{
+	return story.ReviseBasicTaskDetailsCommand{
 		StoryId:     storyId,
 		TaskId:      taskId,
 		Title:       "title1",
@@ -57,7 +57,7 @@ func missingId() uuid.UUID {
 
 func reset() *sql.Tx {
 	db, err := sql.Open("sqlite3", "/home/rh/git/Golang-onion-architecture-sample/scrum_test.sqlite")
-	if err != nil { // Add assert?
+	if err != nil { // TODO: Add assert?
 		panic(err)
 	}
 

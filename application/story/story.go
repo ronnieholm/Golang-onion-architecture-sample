@@ -1,6 +1,4 @@
-package storyRequest
-
-// TODO: Rename package to story?
+package story
 
 import (
 	"context"

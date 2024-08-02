@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
-	"github.com/ronnieholm/golang-onion-architecture-sample/application/storyRequest"
+	"github.com/ronnieholm/golang-onion-architecture-sample/application/story"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
 )
 
@@ -222,7 +222,7 @@ func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreato
 		if err != nil {
 			panic(err)
 		}
-		cmd := storyRequest.CaptureBasicStoryDetailsCommand{
+		cmd := story.CaptureBasicStoryDetailsCommand{
 			Id:          storyId,
 			Title:       req.Title,
 			Description: req.Description,

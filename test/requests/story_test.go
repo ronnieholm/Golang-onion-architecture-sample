@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/ronnieholm/golang-onion-architecture-sample/application/seedwork"
-	"github.com/ronnieholm/golang-onion-architecture-sample/application/storyRequest"
+	"github.com/ronnieholm/golang-onion-architecture-sample/application/story"
 	"github.com/ronnieholm/golang-onion-architecture-sample/infrastructure"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -57,17 +57,17 @@ func (s *StoryTestSuite) TestCaptureBasicStoryAndTaskDetails() {
 	_, err = taskCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
-	storyQry := storyRequest.GetStoryByIdQuery{Id: taskCmd.StoryId}
+	storyQry := story.GetStoryByIdQuery{Id: taskCmd.StoryId}
 	actual, err := storyQry.Run(ctx, memberIdentity, s.stories)
 	require.NoError(err)
 
-	expected := storyRequest.StoryDto{
+	expected := story.StoryDto{
 		Id:          storyCmd.Id,
 		Title:       storyCmd.Title,
 		Description: storyCmd.Description,
 		CreatedAt:   actual.CreatedAt,
 		UpdatedAt:   nil,
-		Tasks: []storyRequest.TaskDto{
+		Tasks: []story.TaskDto{
 			{
 				Id:          taskCmd.TaskId,
 				Title:       taskCmd.Title,
@@ -105,11 +105,11 @@ func (s *StoryTestSuite) TestRemoveStoryWithTask() {
 	_, err = taskCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
-	removeCmd := storyRequest.RemoveStoryCommand{Id: storyCmd.Id}
+	removeCmd := story.RemoveStoryCommand{Id: storyCmd.Id}
 	_, err = removeCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
-	storyQry := storyRequest.GetStoryByIdQuery{Id: taskCmd.StoryId}
+	storyQry := story.GetStoryByIdQuery{Id: taskCmd.StoryId}
 	_, err = storyQry.Run(ctx, memberIdentity, s.stories)
 	require.ErrorAs(err, &seedwork.EntityNotFoundError{})
 	entErr := err.(seedwork.EntityNotFoundError)
@@ -154,7 +154,7 @@ func (s *StoryTestSuite) TestRemoveTaskFromStory() {
 	_, err = taskCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
-	removeCmd := storyRequest.RemoveTaskCommand{StoryId: taskCmd.StoryId, TaskId: taskCmd.TaskId}
+	removeCmd := story.RemoveTaskCommand{StoryId: taskCmd.StoryId, TaskId: taskCmd.TaskId}
 	_, err = removeCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
@@ -164,7 +164,7 @@ func (s *StoryTestSuite) TestRemoveTaskFromStory() {
 func (s *StoryTestSuite) TestRemoveTaskFromNonExistingStory() {
 	require := require.New(s.T())
 	ctx := context.Background()
-	cmd := storyRequest.RemoveTaskCommand{StoryId: missingId(), TaskId: missingId()}
+	cmd := story.RemoveTaskCommand{StoryId: missingId(), TaskId: missingId()}
 	_, err := cmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.ErrorAs(err, &seedwork.ErrEntityNotFound)
 	entErr := err.(seedwork.EntityNotFoundError)
@@ -178,7 +178,7 @@ func (s *StoryTestSuite) TestRemoveNonExistingTaskFromStory() {
 	_, err := storyCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.NoError(err)
 
-	removeCmd := storyRequest.RemoveTaskCommand{StoryId: storyCmd.Id, TaskId: missingId()}
+	removeCmd := story.RemoveTaskCommand{StoryId: storyCmd.Id, TaskId: missingId()}
 	_, err = removeCmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	require.ErrorAs(err, &seedwork.EntityNotFoundError{})
 	entErr := err.(seedwork.EntityNotFoundError)
@@ -262,11 +262,11 @@ func (s *StoryTestSuite) TestGetStoriesPaged() {
 		cmd.Run(ctx, memberIdentity, s.stories, s.clock)
 	}
 
-	page1, err := storyRequest.GetStoriesPagedQuery{Limit: 5, Cursor: nil}.Run(ctx, memberIdentity, s.stories)
+	page1, err := story.GetStoriesPagedQuery{Limit: 5, Cursor: nil}.Run(ctx, memberIdentity, s.stories)
 	require.NoError(err)
-	page2, err := storyRequest.GetStoriesPagedQuery{Limit: 5, Cursor: page1.Cursor}.Run(ctx, memberIdentity, s.stories)
+	page2, err := story.GetStoriesPagedQuery{Limit: 5, Cursor: page1.Cursor}.Run(ctx, memberIdentity, s.stories)
 	require.NoError(err)
-	page3, err := storyRequest.GetStoriesPagedQuery{Limit: 5, Cursor: page2.Cursor}.Run(ctx, memberIdentity, s.stories)
+	page3, err := story.GetStoriesPagedQuery{Limit: 5, Cursor: page2.Cursor}.Run(ctx, memberIdentity, s.stories)
 	require.NoError(err)
 
 	require.Equal(5, len(page1.Items))

@@ -1,4 +1,4 @@
-package domainEventRequest
+package domainEvent
 
 import (
 	"context"
