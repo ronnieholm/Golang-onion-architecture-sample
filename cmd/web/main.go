@@ -141,6 +141,108 @@ func run(
 	return nil
 }
 
+type ProblemDetails struct {
+	Type   string `json:"type"`
+	Title  string `json:"title"`
+	Status int    `json:"status"`
+	Detail string `json:"detail"`
+}
+
+type ValidationErrorDto struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+func inferContentType(r *http.Request) string {
+	contentType := "application/json"
+outer:
+	for k, v := range r.Header {
+		if k == "acceptHeaders" {
+			for _, v1 := range v {
+				if v1 == "application/problem+json" {
+					contentType = v1
+					break outer
+				}
+			}
+		}
+	}
+	return contentType
+}
+
+func newProblemDetails(status int, detail string) ProblemDetails {
+	return ProblemDetails{
+		Type:   "Error",
+		Title:  "Error",
+		Status: status,
+		Detail: detail,
+	}
+}
+
+func x(w http.ResponseWriter, r *http.Request, pd ProblemDetails) {
+	w.Header().Set("Content-Type", inferContentType(r))
+	w.WriteHeader(pd.Status)
+	if err := json.NewEncoder(w).Encode(pd); err != nil {
+		panic(err)
+	}
+}
+
+func missingQueryStringParam(name string) {
+
+}
+
+func unexpectedQueryStringParam(name string) {
+
+}
+
+func queryStringParamMustBeOfType(name, type_ string) {
+
+}
+
+func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	var pd ProblemDetails
+
+	// TODO: slog here for each case as well?
+
+	switch err := err.(type) {
+	case seedwork.AuthorizationError:
+		pd = newProblemDetails(http.StatusUnauthorized, fmt.Sprintf("Missing role: {%s}", err.Role))
+	case seedwork.ValidationErrors:
+		errs := make([]ValidationErrorDto, 0, len(err.Errors))
+		for _, e := range err.Errors {
+			errs = append(errs, ValidationErrorDto{Field: e.Field, Message: e.Message})
+		}
+
+		errsJson, err1 := json.MarshalIndent(errs, "", "  ")
+		if err1 != nil {
+			panic(err)
+		}
+		pd = newProblemDetails(http.StatusBadRequest, string(errsJson))
+	case seedwork.EntityConflictError:
+		pd = newProblemDetails(http.StatusConflict, "EntityConflictError")
+	case seedwork.EntityNotFoundError:
+		pd = newProblemDetails(http.StatusNotFound, "EntityNotFoundError")
+	case seedwork.ApplicationError:
+		pd = newProblemDetails(http.StatusInternalServerError, "ApplicationError")
+	case TxBeginError:
+		pd = newProblemDetails(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	case RequestDecodeError:
+		pd = newProblemDetails(http.StatusBadRequest, err.Error())
+	case TxCommitError:
+		pd = newProblemDetails(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	default:
+		pd = newProblemDetails(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	}
+
+	x(w, r, pd)
+}
+
+func getCurrentIdentity(_ *http.Request) seedwork.ScrumIdentityAuthenticated {
+	// TODO: parse request
+	return seedwork.ScrumIdentityAuthenticated{
+		UserId: "123",
+		Roles:  []seedwork.ScrumRole{seedwork.ScrumRoleMember}}
+}
+
 // TODO: should arguments be interface? I believe so for mockability.
 func addRoutes(
 	mux *http.ServeMux,
@@ -197,26 +299,54 @@ type StoryCreateRequest struct {
 }
 
 type StoryCreateResponse struct {
-	Id string `json:"id"`
+	StoryId string `json:"story_id"`
+}
+
+type TxBeginError struct {
+	Err error
+}
+
+func (e TxBeginError) Error() string {
+	return "TODO: TxBeginError"
+}
+
+type RequestDecodeError struct {
+	Err error
+}
+
+func (e RequestDecodeError) Error() string {
+	return "TODO: RequestDecodeError"
+}
+
+type TxCommitError struct {
+	Err error
+}
+
+func (e TxCommitError) Error() string {
+	return "TODO: TxCommitError"
 }
 
 func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreator func(*sql.Tx) *sqlite.StoryStore) http.Handler {
-	// TODO: temporary. Call function with request to parse identity.
-	identity := seedwork.ScrumIdentityAuthenticated{
-		UserId: "123",
-		Roles:  []seedwork.ScrumRole{seedwork.ScrumRoleMember}}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tx, err := db.Begin()
 		if err != nil {
-			panic(err) // TODO: don't panic
+			writeError(w, r, TxBeginError{err})
+			return
 		}
+		defer func() {
+			err := tx.Rollback()
+			if err != nil {
+				fmt.Printf("todo: log %s", err)
+			}
+		}()
+
 		stories := storyStoreCreator(tx)
+		identity := getCurrentIdentity(r)
 
 		req, err := decode[StoryCreateRequest](r)
 		if err != nil {
-			fmt.Println(err.Error())
-			return // TODO: Return an http response
+			writeError(w, r, RequestDecodeError{err})
+			return
 		}
 
 		storyId, err := uuid.NewUUID()
@@ -228,27 +358,22 @@ func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreato
 			Title:       req.Title,
 			Description: req.Description,
 		}
-
 		id, err := cmd.Run(r.Context(), identity, stories, clock)
 		if err != nil {
-			err1 := tx.Rollback()
-			if err1 != nil {
-				// TODO: what to do except log there error? We can't return it.
-				fmt.Println(err1)
-			}
-			return // TODO: Return an http response
+			writeError(w, r, err)
+			return
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			// TODO: what to do?
-			fmt.Println(err)
+			writeError(w, r, TxCommitError{err})
+			return
 		}
 
-		err = encode(w, r, http.StatusOK, StoryCreateResponse{Id: id.String()})
+		w.Header().Set("Location", fmt.Sprintf("/stories/%s", id.String()))
+		err = encode(w, r, http.StatusCreated, StoryCreateResponse{StoryId: id.String()})
 		if err != nil {
-			fmt.Println(err.Error())
-			return // TODO: Return an http response
+			panic(err)
 		}
 	})
 }
@@ -308,6 +433,8 @@ func handleDomainEventsPaged(_ *sql.DB, _ *sqlite.DomainEventStore) http.Handler
 		w.Write([]byte("Id: " + id))
 	})
 }
+
+// Are encode and decode worth it?
 
 func encode[T any](w http.ResponseWriter, _ *http.Request, status int, v T) error {
 	w.Header().Set("Content-Type", "application/json")
