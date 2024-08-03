@@ -99,6 +99,17 @@ const (
 	ScrumRoleAdmin
 )
 
+func (s ScrumRole) String() string {
+	switch s {
+	case ScrumRoleMember:
+		return "Member"
+	case ScrumRoleAdmin:
+		return "Admin"
+	default:
+		panic("unreachable") // TODO: Include unsupported integer.
+	}
+}
+
 type ScrumIdentity interface {
 	IsInRole(role ScrumRole) bool
 }
