@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -40,21 +39,21 @@ func NewServer(
 
 func globalErrorMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Did error happen?")
+		//log.Printf("Did error happen?")
 		next.ServeHTTP(w, r)
 	}
 }
 
 func requestLoggerMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("method %s, path %s", r.Method, r.URL.Path)
+		//log.Printf("method %s, path %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	}
 }
 
 func requireAuthMiddleware(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Is user authenticated?")
+		//log.Printf("Is user authenticated?")
 		_ = r.Header.Get("Authorization")
 		next.ServeHTTP(w, r)
 	}
@@ -82,10 +81,10 @@ type config struct {
 // support or maybe even os.Stdin, os.Stdout, os.Stderr.
 func run(
 	ctx context.Context,
-	_ []string,
-	_ func(string) string,
-	_ io.Reader,
-	_, _ io.Writer,
+	// _ []string,
+	// _ func(string) string,
+	// _ io.Reader,
+	// _, _ io.Writer,
 ) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
@@ -98,7 +97,7 @@ func run(
 
 	config := config{
 		host: "localhost",
-		port: "8080",
+		port: "5000",
 	}
 
 	srv := NewServer(
@@ -129,7 +128,7 @@ func run(
 		<-ctx.Done()
 
 		// make a new context for the Shutdown.
-		_ = context.Background() // TODO: why doesn't this work from the blog post?
+		//shutdownCtx := context.Background() // TODO: why doesn't this work from the blog post?
 		shutdownCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -268,7 +267,7 @@ func addRoutes(
 
 	mux.Handle("GET /persisted-domain-events/{id}", handleDomainEventsPaged(db, domainEventStore))
 
-	// mux.HandleFunc("/healthz", handleHealthzPlease(logger))
+	mux.Handle("/health", handleHealth())
 	// mux.Handle("/", http.NotFoundHandler())
 }
 
@@ -326,6 +325,15 @@ func (e TxCommitError) Error() string {
 	return "TODO: TxCommitError"
 }
 
+func handleHealth() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	})
+}
+
+// TODO: Consider reducing boilerplate by implementing https://stackoverflow.com/questions/16184238/database-sql-tx-detecting-commit-or-rollback
+
 func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreator func(*sql.Tx) *sqlite.StoryStore) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tx, err := db.Begin()
@@ -335,7 +343,7 @@ func handleStoryCreate(db *sql.DB, clock *infrastructure.Clock, storyStoreCreato
 		}
 		defer func() {
 			err := tx.Rollback()
-			if err != nil {
+			if err != nil && err.Error() != "sql: transaction has already been committed or rolled back" {
 				fmt.Printf("todo: log %s", err)
 			}
 		}()
@@ -457,7 +465,7 @@ func decode[T any](r *http.Request) (T, error) {
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Args, os.Getenv, os.Stdin, os.Stdout, os.Stderr); err != nil {
+	if err := run(ctx /*os.Args, os.Getenv, os.Stdin, os.Stdout, os.Stderr*/); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
