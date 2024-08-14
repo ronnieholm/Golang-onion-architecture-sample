@@ -1,4 +1,6 @@
-# Golang
+# Golang Scrum onion architecture sample
+
+Work in progress.
 
 ## See also
 
