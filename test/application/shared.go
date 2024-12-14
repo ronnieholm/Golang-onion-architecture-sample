@@ -62,9 +62,9 @@ func reset() *sql.Tx {
 	}
 
 	sql := []string{
-		"delete from tasks where id like '%'",
-		"delete from stories where id like '%'",
-		"delete from domain_events where id like '%'",
+		"delete from tasks",
+		"delete from stories",
+		"delete from domain_events",
 	}
 
 	tx, err := db.Begin()
