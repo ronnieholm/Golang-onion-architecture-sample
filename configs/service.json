@@ -1,0 +1,8 @@
+{
+    "db_url": "postgres://postgres:secret@localhost:5432/reseller_loyalty_local",
+    "daily_tiering_schedule": "0 */1 * * * *",
+    "outbox_processor": {
+        "batch_size": 100,
+        "schedule": "0 */1 * * * *"
+    }
+}

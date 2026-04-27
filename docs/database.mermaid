@@ -1,0 +1,167 @@
+---
+title: Reseller Loyalty. Apr 27, 2026
+---
+erDiagram
+    product_group {
+        uuid id PK
+        string code FK "In external system"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    product {
+        uuid id PK
+        string product_group_id FK
+        string code FK "In external system"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    product_group_weight {
+        uuid id PK
+        uuid product_group_id FK
+        decimal percentage "[0; 100]"
+        date from
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    tier_discount {
+        uuid id PK
+        decimal authorized_percentage "[0; 100]"
+        decimal advanced_percentage "[0; 100]"
+        decimal premier_percentage "[0; 100]"
+        date from
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    currency {
+        uuid id PK
+        enum code "ISO 4217"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    exchange_rate {
+        uuid id PK
+        uuid currency_id FK
+        decimal rate
+        date from
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    threshold_group {
+        uuid id PK
+        enum country_code "ISO 3166"
+        enum currency_code "ISO 4217"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    threshold_group_limit {
+        uuid id PK
+        uuid threshold_group_id FK
+        enum currency_code "ISO 4217"
+        amount minimum_authorized_net_revenue
+        amount minimum_advanced_net_revenue
+        amount minimum_premier_net_revenue
+        date from
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    cluster {
+        uuid id PK
+        uuid external_id FK "In external system"
+        uuid threshold_group_id FK
+        enum calculated_tier_minimum "nullable"
+        enum calculated_tier_year_to_date "nullable"
+        amount calculated_net_revenue_year_to_date "nullable"
+        amount calculated_net_revenue_last_year "nullable"
+        date last_tiered_at "nullable"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    reseller {
+        uuid id PK
+        uuid external_id FK "In external system"
+        uuid cluster_id FK "nullable"
+        enum country_code "ISO 3166"
+        enum currency_code "ISO 4217"
+        enum role "{ Member, Head, Orphan }"
+        date enrolled_at
+        amount calculated_net_revenue_year_to_date "nullable"
+        amount calculated_net_revenue_last_year "nullable"
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    billing {
+        uuid id PK
+        uuid reseller_external_id FK "In external system, nullable"
+        string document_number
+        date booked_at
+        enum billing_kind "{ Invoice, CreditMemo }"
+        enum currency_code "ISO 4217"
+        amount calculated_net_revenue
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    billing_item {
+        uuid id PK
+        uuid billing_id FK
+        uuid product_id FK
+        enum currency_code "ISO 4217"
+        amount gross_revenue
+        amount calculated_net_revenue
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    domain_event {
+        int id PK
+        uuid aggregate_id
+        text type
+        jsonb payload
+        int version
+        datetime occurred_at
+    }
+
+    outbox_event {
+        int id PK
+        text type
+        jsonb payload
+        datetime occurred_at
+        datetime processed_at "nullable" 
+    }
+
+    reseller_tiering {
+        uuid id PK
+        date tier_at
+        datetime start
+        datetime end
+        int version
+        datetime created_at
+        datetime updated_at "nullable"
+    }
+
+    product_group ||--o{ product_group_weight : has
+    product_group ||--o{ product : has
+    cluster ||--|{ reseller : contains
+    threshold_group ||--o{ cluster : classifies
+    threshold_group ||--o{ threshold_group_limit : has
+    currency ||--o{ exchange_rate : has
+    reseller ||--o{ billing : has
+    billing ||--o{ billing_item : has
+    product ||--o{ billing_item : classifies

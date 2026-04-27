@@ -1,0 +1,23 @@
+version: "3"
+
+services:
+  database:
+    image: postgres
+    container_name: reseller-loyalty-postgres
+    hostname: resellerloyaltypostgres
+    ports:
+      - "5432:5432"
+    environment:
+      # Explicitly doesn't use POSTGRES_DB to create a database on startup as
+      # during development the database may recreated multiple times.
+      POSTGRES_PASSWORD: secret
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: reseller-loyalty-pgadmin
+    ports:
+      - "5500:5500"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: postgres@domain.com
+      PGADMIN_DEFAULT_PASSWORD: secret
+      PGADMIN_LISTEN_PORT: 5500

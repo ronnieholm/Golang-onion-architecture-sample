@@ -1,0 +1,79 @@
+var uuidSeq uint64
+
+func UUIDGen() *rapid.Generator[uuid.UUID] {
+	return rapid.Custom(func(t *rapid.T) uuid.UUID {
+		// By default, Rapid is "smart" and picks boundary values because those
+		// are where bugs usually hide. But using UUIDs as Unique Keys in a
+		// database, this behavior causes primary key collisions.
+		//
+		// Drawing two Uint64s provides 128 bits of entropy. But rapid.Uint64()
+		// is still "smart" and doesn't explore the full range. Instead a global
+		// UUID counter is used as the actual UUID should never matter in tests.
+		entropy := rapid.Uint64().Draw(t, "entropy")
+		seq := atomic.AddUint64(&uuidSeq, 1)
+
+		var id uuid.UUID
+		binary.BigEndian.PutUint64(id[0:8], entropy)
+		binary.BigEndian.PutUint64(id[8:16], seq)
+		id[6] = (id[6] & 0x0f) | 0x40
+		id[8] = (id[8] & 0x3f) | 0x80
+		return id
+	})
+}
+
+// ----------------------------------------------------------------------------
+
+// Sub test example
+
+func TestCreateCurrency(t *testing.T) {
+	tests := []struct {
+		name   string
+		action func(t *testing.T) // Each test defines its own execution logic
+	}{
+		{
+			name: "new currency",
+			action: func(t *testing.T) {
+				err := CreateCurrency("USD", "United States Dollar")
+				assert.NoError(t, err)
+			},
+		},
+		{
+			name: "invalid code length",
+			action: func(t *testing.T) {
+				// Here we only pass one arg or a different type of invalid data
+				err := CreateCurrency("TOOLONG", "")
+				assert.Error(t, err)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.action(t)
+		})
+	}
+}
+
+// ----------------------------------------------------------------------------
+
+// MapValueGen generates a value from a non-empty map.
+func MapValueGen[K comparable, V any](m map[K]V, cmp func(K, K) int) *rapid.Generator[V] {
+	keyGen := MapKeyGen(m, cmp)
+	return rapid.Custom(func(t *rapid.T) V {
+		key := keyGen.Draw(t, "key")
+		return m[key]
+	})
+}
+
+// MapUUIDValueGen generates a value from a map with key of type uuid.UUID.
+// It's a shorthand for MapValueGen without a comparator.
+func MapUUIDValueGen[V any](m map[uuid.UUID]V) *rapid.Generator[V] {
+	uuidComparator := func(a, b uuid.UUID) int {
+		return bytes.Compare(a[:], b[:])
+	}
+	return rapid.Custom(func(t *rapid.T) V {
+		key := MapKeyGen(m, uuidComparator).Draw(t, "key")
+		return m[key]
+	})
+}
+
+// ----------------------------------------------------------------------------
