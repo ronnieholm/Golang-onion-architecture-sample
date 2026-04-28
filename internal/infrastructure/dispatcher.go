@@ -128,7 +128,7 @@ type Dispatcher struct {
 	GetCurrencyByCode  Handler[core.GetCurrencyByCodeQuery, *core.Currency]
 }
 
-func NewDispatcher(ctx context.Context, settings Config, opts ...DispatcherOption) Dispatcher {
+func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption) Dispatcher {
 	// Beware that pgxpool's maxConns is the greater of 4 and runtime.NumCPU().
 	// On a powerful machine, maxConns of 32 may cause the pool's internal limit
 	// be larger than the database server's limit, i.e., pgxpool MaxConns may be
@@ -139,18 +139,18 @@ func NewDispatcher(ctx context.Context, settings Config, opts ...DispatcherOptio
 	//
 	// server error: FATAL: sorry, too many clients already (SQLSTATE 53300)
 
-	config, _ := pgxpool.ParseConfig(settings.DBUrl)
-	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+	c, _ := pgxpool.ParseConfig(config.DBUrl)
+	c.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		// Disable synchronous commit for the session. It makes transaction
 		// commit return as soon as the data is in memory, rather than waiting
 		// for a disk flush. As a result, test performance increases by 4-5x.
-		// TODO(rh): add settings flag only set to true in test. Or does postgres suppport a way to encode this setting in the connection?
+		// TODO(rh): add configs flag only set to true in test. Or does postgres suppport a way to encode this setting in the connection?
 		_, err := conn.Exec(ctx, "SET synchronous_commit TO OFF")
 		return err
 	}
 
-	//pool, err := pgxpool.New(ctx, settings.DatabaseConnectionString)
-	pool, err := pgxpool.NewWithConfig(ctx, config)
+	//pool, err := pgxpool.New(ctx, config.DatabaseConnectionString)
+	pool, err := pgxpool.NewWithConfig(ctx, c)
 	if err != nil {
 		log.Fatalf("unable to create connection pool: %v", err)
 	}

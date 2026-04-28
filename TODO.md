@@ -14,3 +14,4 @@
 - Enable Docker image with compiler to build application
   - docker run -v "$PWD":/app -w app go run main.go
   - Deployment should uses multi-stage Docker builds to minimise image size
+- Setup GitHub CI pipeline  
