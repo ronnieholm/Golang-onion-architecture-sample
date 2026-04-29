@@ -1,4 +1,4 @@
-# Golang onion architecture Reseller Loyalty sample
+# Golang onion architecture sample: Reseller Loyalty
 
 _Got a comment or a question? Don't hesitate to drop me an email or open an issue._
 
@@ -23,7 +23,29 @@ It includes the following features:
 - Integration tests use property based testing to supplement example tests.
 - Database migrations and initial seeding.
 
-## Context
+## Getting started
+
+Create a `.env` file at the root of the repository with the following content:
+
+    DB_BASE_URL=postgres://postgres:secret@localhost:5432
+    DB_LOCAL_NAME=reseller_loyalty_local
+    DB_LOCAL_INTEGRATION_TEST_NAME=reseller_loyalty_local_integration_test  
+
+Then run
+
+    $ docker compose up
+
+to run a PostgreSQL server at `localhost:5432` and a pgAdmin interface at
+http://localhost:5500 (see `docker-compose.yml` for login details).
+
+Assuming Make and Go are already installed, next
+
+    $ make db-create
+    $ make db-migrate-up
+    $ make build
+    $ make test
+
+## Constraints
 
 Not every project requires an implementation of every concept from domain driven
 design and onion architecture. For instance, the service mostly doesn't use
@@ -42,29 +64,6 @@ HTTP API, the sample adheres to the Zalando API guidelines. It doesn't mean The
 Blue Book and the Zalando API guidelines are the end all, be all, but the sample
 reflects the constraints of a real-world service.
 
-## Getting started
-
-Create a `.env` file at the root of the repository with the following content:
-
-    DB_BASE_URL=postgres://postgres:secret@localhost:5432
-    DB_LOCAL_NAME=reseller_loyalty_local
-    DB_LOCAL_INTEGRATION_TEST_NAME=reseller_loyalty_local_integration_test  
-
-Then run
-
-    $ docker compose up
-
-to run a PostgreSQL server at `localhost:5432` and a pgAdmin interface at
-http://localhost:5500 (see `docker-compose.yml` for login details).
-
-Assuming Go is installed locally, next
-
-    $ make db-create
-    $ make db-migrate-up
-    $ make build
-    $ make test
-    $ make db-drop # optional
-
 ## Migrations
 
 To create a new migration:
@@ -77,4 +76,7 @@ TBD.
 
 ## See also
 
-TBD.
+- [Implementing Domain-Driven Design by Vaughn Vernon (The Blue Book)](https://www.amazon.com/Implementing-Domain-Driven-Design-Vaughn-Vernon/dp/0321834577).
+- [Uncle Bob: Architecture the Lost Years](https://www.youtube.com/watch?v=WpkDN78P884).
+- [.NET Microservices: Architecture for Containerized .NET Applications](https://docs.microsoft.com/en-us/dotnet/architecture/microservices), specifically the chapter on [Tackling Business Complexity in a Microservice with DDD and CQRS Patterns](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns).
+- [Zalando API guidelines](https://opensource.zalando.com/restful-api-guidelines).
