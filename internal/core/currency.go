@@ -52,10 +52,10 @@ type CurrencyRemovedEvent struct {
 }
 
 const (
-	CurrencyAddRequiresFutureFrom     = 1600
-	CurrencyUpdateRequiresFutureFrom  = 1601
-	CurrencyRemoveRequiresFutureFrom  = 1602
-	CurrencyUpdateRequiresChangedRate = 1603
+	CurrencyAddRequiresFutureFrom    = 1600
+	CurrencyUpdateRequiresFutureFrom = 1601
+	CurrencyRemoveRequiresFutureFrom = 1602
+	CurrencyUpdateRequiresChange     = 1603
 )
 
 type ExchangeRate struct {
@@ -79,8 +79,8 @@ func NewExchangeRate(id uuid.UUID, rate float64, from Date, createdAt time.Time)
 func (e *ExchangeRate) Update(rate float64, from Date, updatedAt time.Time) error {
 	if e.Rate == rate && e.From.Equal(from) {
 		return NewDomainError(
-			CurrencyUpdateRequiresChangedRate,
-			fmt.Sprintf("update exchange rate requires a rate different from %f and/or a from different from %s", rate, from.String()))
+			CurrencyUpdateRequiresChange,
+			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from.String()))
 	}
 
 	e.Rate = rate

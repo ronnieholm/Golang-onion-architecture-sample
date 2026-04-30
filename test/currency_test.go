@@ -269,7 +269,7 @@ func (ct *CurrencyTests) TestUpdateExchangeRateUnchangedInvalid() {
 
 		var e *core.DomainError
 		require.ErrorAs(t, err, &e)
-		assert.Equal(t, core.CurrencyUpdateRequiresChangedRate, e.Code)
+		assert.Equal(t, core.CurrencyUpdateRequiresChange, e.Code)
 	})
 }
 

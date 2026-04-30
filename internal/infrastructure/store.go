@@ -233,10 +233,10 @@ func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregat
 	q := `INSERT INTO domain_event (aggregate_id, type, payload, version, occurred_at) values ($1, $2, $3, $4, $5)`
 	tag, err := tx.Exec(ctx, q, aggregateID, eventType, b, version+1, event.At())
 	if err != nil {
-		return fmt.Errorf("add domain event %s execution failed: %w", t, err)
+		return fmt.Errorf("log domain event %T execution failed: %w", event, err)
 	}
 	if tag.RowsAffected() != 1 {
-		return fmt.Errorf("add domain event %s unexpected row count: %d", t, tag.RowsAffected())
+		return fmt.Errorf("log domain event %T unexpected row count: %d", event, tag.RowsAffected())
 	}
 	return nil
 }
@@ -246,12 +246,12 @@ func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregat
 // that doesn't care if RowsAffected is 0, or add a boolean flag to the existing
 // helper. Otherwise, the version above is the cleanest way to handle strictly
 // enforced 1-row changes.
-func (r PgCurrencyStore) checkExec(err error, tag pgconn.CommandTag, action string, id uuid.UUID) error {
+func (r PgCurrencyStore) checkExec(err error, tag pgconn.CommandTag, event core.DomainEvent, id uuid.UUID) error {
 	if err != nil {
-		return fmt.Errorf("%s (id=%s) execution failed: %w", action, id, err)
+		return fmt.Errorf("project domain event %T (id=%s) execution failed: %w", event, id, err)
 	}
 	if tag.RowsAffected() != 1 {
-		return fmt.Errorf("%s (id=%s) unexpected row count: %d", action, id, tag.RowsAffected())
+		return fmt.Errorf("project domain event %T (id=%s) unexpected row count: %d", event, id, tag.RowsAffected())
 	}
 	return nil
 }
@@ -261,25 +261,25 @@ func (r PgCurrencyStore) projectDomainEvent(ctx context.Context, tx pgx.Tx, even
 	case core.CurrencyCreatedEvent:
 		q := "INSERT INTO currency (id, code, version, created_at) VALUES ($1, $2, $3, $4)"
 		tag, err := tx.Exec(ctx, q, e.ID, e.Code, 1, e.OccurredAt)
-		return r.checkExec(err, tag, "create currency", e.ID)
+		return r.checkExec(err, tag, e, e.ID)
 	case core.CurrencyRemovedEvent:
 		tag, err := tx.Exec(ctx, "DELETE FROM currency WHERE id = $1", e.ID)
-		return r.checkExec(err, tag, "remove currency", e.ID)
+		return r.checkExec(err, tag, e, e.ID)
 	case core.ExchangeRateAddedEvent:
 		q := `INSERT INTO exchange_rate (id, currency_id, rate, "from", created_at) values ($1, $2, $3, $4, $5)`
 		tag, err := tx.Exec(ctx, q, e.ExchangeRateID, e.CurrencyID, e.Rate, e.From, e.OccurredAt)
-		return r.checkExec(err, tag, "insert exchange rate", e.ExchangeRateID)
+		return r.checkExec(err, tag, e, e.ExchangeRateID)
 	case core.ExchangeRateUpdatedEvent:
 		q2 := `
             UPDATE exchange_rate 
             SET rate = $1, "from" = $2, updated_at = $3 
             WHERE id = $4 AND currency_id = $5`
 		tag, err := tx.Exec(ctx, q2, e.Rate, e.From, e.OccurredAt, e.ExchangeRateID, e.CurrencyID)
-		return r.checkExec(err, tag, "update exchange rate", e.ExchangeRateID)
+		return r.checkExec(err, tag, e, e.ExchangeRateID)
 	case core.ExchangeRateRemovedEvent:
 		q := "DELETE FROM exchange_rate WHERE id = $1 AND currency_id = $2"
 		tag, err := tx.Exec(ctx, q, e.ExchangeRateID, e.CurrencyID)
-		return r.checkExec(err, tag, "remove exchange rate", e.ExchangeRateID)
+		return r.checkExec(err, tag, e, e.ExchangeRateID)
 	default:
 		panic(fmt.Sprintf("unhandled type: %T", e))
 	}
