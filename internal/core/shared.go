@@ -6,12 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+func Assert(expr bool, format string, args ...any) {
+	if !expr {
+		panic(fmt.Sprintf(format, args...))
+	}
+}
 
 // DomainEvent interface is needed to treat events uniformly. Otherwise, it
 // isn't possible to add multiple types as DomainEvent to an Aggregate.
@@ -58,6 +63,10 @@ func EntityEqual[T Identifiable](a, b *T) bool {
 	return (*a).GetID() == (*b).GetID()
 }
 
+func ValueEquals[T comparable](v, other T) bool {
+	return v == other
+}
+
 type AggregateRoot struct {
 	Entity
 	Version      int
@@ -73,13 +82,6 @@ func (a *AggregateRoot) ClearDomainEvents() {
 }
 
 type ValueObject struct {
-}
-
-func (v ValueObject) Equals(other any) bool {
-	// TODO(rh): Now that Go has enumerators, should we copy C#'s approach to avoid
-	// reflection?
-	// TODO(rh): what if types of v and other differ?
-	return reflect.DeepEqual(v, other)
 }
 
 func stringsToMap(s ...string) map[string]string {
@@ -98,21 +100,21 @@ func stringsToMap(s ...string) map[string]string {
 }
 
 type DataStaleError struct {
-	Entity string
-	ID     uuid.UUID
+	Aggregate string
+	ID        uuid.UUID
 }
 
-func NewDataStaleError(entity string, id uuid.UUID) *DataStaleError {
-	return &DataStaleError{Entity: entity, ID: id}
+func NewDataStaleError(aggregate string, id uuid.UUID) *DataStaleError {
+	return &DataStaleError{Aggregate: aggregate, ID: id}
 }
 
 func (e *DataStaleError) Error() string {
-	return fmt.Sprintf("data stale for %s with id: %s", e.Entity, e.ID)
+	return fmt.Sprintf("data stale for aggregate %s with id: %s", e.Aggregate, e.ID)
 }
 
 type ConflictError struct {
-	Entity      string            // TODO(rh): field not included in error string
-	FieldValues map[string]string // TODO(rh): should value be a list?
+	Entity      string
+	FieldValues map[string]string
 }
 
 func NewConflictError(entity string, fieldValues ...string) *ConflictError {
@@ -129,7 +131,8 @@ func (e *ConflictError) Error() string {
 	}
 
 	var b = strings.Builder{}
-	b.WriteString("conflict on ")
+	b.WriteString(e.Entity)
+	b.WriteString(" conflicts: ")
 
 	i := 0
 	for f, v := range e.FieldValues {
@@ -164,17 +167,16 @@ func (e *NotFoundError) Error() string {
 
 	var b = strings.Builder{}
 	b.WriteString(e.Entity)
-	b.WriteString(" with ")
+	b.WriteString(" not found: ")
 
 	i := 0
 	for f, v := range e.FieldValues {
 		if i > 0 {
-			b.WriteString(" and ")
+			b.WriteString(", ")
 		}
 		b.WriteString(f)
-		b.WriteString(" ")
+		b.WriteString(": ")
 		b.WriteString(v)
-		b.WriteString(" not found")
 		i++
 	}
 	return b.String()
@@ -318,7 +320,7 @@ func (d *Date) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	d = &nd
+	*d = nd
 	return nil
 }
 

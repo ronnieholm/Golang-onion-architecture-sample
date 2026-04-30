@@ -349,13 +349,7 @@ func UpdateExchangeRateValidGen() *rapid.Generator[UpdateExchangeRateFixture] {
 		base := AddExchangeRateUniqueFromValidGen().Draw(t, "base")
 		today := base.Clock.Today()
 		add := rapid.SampledFrom(base.AddExchangeRates).Draw(t, "add")
-
-		update := core.UpdateExchangeRateCommand{
-			ID:   add.ID,
-			Code: add.Code,
-			Rate: add.Rate,
-			From: add.From,
-		}
+		update := core.UpdateExchangeRateCommand(add)
 
 		fieldsUpdate := rapid.SliceOfNDistinct(
 			rapid.IntRange(0, 1), 1, 2, func(i int) int { return i }).
@@ -435,13 +429,7 @@ func UpdateExchangeRateUnchangedInvalidGen() *rapid.Generator[UpdateExchangeRate
 	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFixture {
 		base := AddExchangeRateUniqueFromValidGen().Draw(t, "base")
 		add := rapid.SampledFrom(base.AddExchangeRates).Draw(t, "add")
-
-		update := core.UpdateExchangeRateCommand{
-			ID:   add.ID,
-			Code: add.Code,
-			Rate: add.Rate,
-			From: add.From,
-		}
+		update := core.UpdateExchangeRateCommand(add)
 
 		return UpdateExchangeRateFixture{
 			Base:               base,

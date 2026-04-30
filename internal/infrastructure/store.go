@@ -23,7 +23,7 @@ type currencyFlat struct {
 	CUpdatedAt *time.Time
 	EID        *uuid.UUID
 	ERate      *float64
-	EFrom      *time.Time // TODO(rh): can we use Date directly given its Scanner implementation?
+	EFrom      *core.Date
 	ECreatedAt *time.Time
 	EUpdatedAt *time.Time
 }
@@ -52,7 +52,7 @@ func (c currencyFlat) exchangeRate() *core.ExchangeRate {
 				UpdatedAt: c.EUpdatedAt,
 			},
 			Rate: *c.ERate,
-			From: core.DateFromTime(*c.EFrom),
+			From: *c.EFrom,
 		}
 	} else {
 		return nil
@@ -281,6 +281,6 @@ func (r PgCurrencyStore) projectDomainEvent(ctx context.Context, tx pgx.Tx, even
 		tag, err := tx.Exec(ctx, q, e.ExchangeRateID, e.CurrencyID)
 		return r.checkExec(err, tag, "remove exchange rate", e.ExchangeRateID)
 	default:
-		return fmt.Errorf("unhandled type: %T", e)
+		panic(fmt.Sprintf("unhandled type: %T", e))
 	}
 }

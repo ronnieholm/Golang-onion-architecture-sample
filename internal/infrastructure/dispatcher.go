@@ -141,15 +141,14 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 
 	c, _ := pgxpool.ParseConfig(config.DBUrl)
 	c.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		// Disable synchronous commit for the session. It makes transaction
-		// commit return as soon as the data is in memory, rather than waiting
-		// for a disk flush. As a result, test performance increases by 4-5x.
-		// TODO(rh): add configs flag only set to true in test. Or does postgres suppport a way to encode this setting in the connection?
-		_, err := conn.Exec(ctx, "SET synchronous_commit TO OFF")
-		return err
+		// Application-wide connection string options should generally be part
+		// of the DB_URL setting. But they can be set through
+		//
+		//  _, err := conn.Exec(ctx, "SET synchronous_commit TO OFF")
+		//  return err
+		return nil
 	}
 
-	//pool, err := pgxpool.New(ctx, config.DatabaseConnectionString)
 	pool, err := pgxpool.NewWithConfig(ctx, c)
 	if err != nil {
 		log.Fatalf("unable to create connection pool: %v", err)

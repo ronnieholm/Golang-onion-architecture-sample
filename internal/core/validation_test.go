@@ -76,9 +76,9 @@ func TestValidateFloat64InclusiveRange(t *testing.T) {
 			if len(e.FieldValues) == 1 {
 				v := e.FieldValues["field"]
 				require.Equal(t, 1, len(v))
-				require.Contains(t, e.Error(), fmt.Sprintf("%f", tt.value))
-				require.Contains(t, e.Error(), fmt.Sprintf("%f", tt.min))
-				require.Contains(t, e.Error(), fmt.Sprintf("%f", tt.max))
+				require.Contains(t, e.Error(), fmt.Sprintf("%g", tt.value))
+				require.Contains(t, e.Error(), fmt.Sprintf("%g", tt.min))
+				require.Contains(t, e.Error(), fmt.Sprintf("%g", tt.max))
 			}
 		})
 	}
@@ -136,9 +136,9 @@ func TestValidateDateIncludeRange(t *testing.T) {
 			if len(e.FieldValues) == 1 {
 				v := e.FieldValues["field"]
 				require.Equal(t, 1, len(v))
-				require.Contains(t, e.Error(), fmt.Sprintf("%s", tt.value))
-				require.Contains(t, e.Error(), fmt.Sprintf("%s", tt.min))
-				require.Contains(t, e.Error(), fmt.Sprintf("%s", tt.max))
+				require.Contains(t, e.Error(), tt.value.String())
+				require.Contains(t, e.Error(), tt.min.String())
+				require.Contains(t, e.Error(), tt.max.String())
 			}
 		})
 	}

@@ -181,9 +181,7 @@ func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time
 	}
 
 	idx := slices.IndexFunc(c.ExchangeRates, exchangeRate.Equal)
-	if idx == -1 { // TODO(rh): implement assert function.
-		panic(fmt.Sprintf("missing exchange rate %s", exchangeRate.ID))
-	}
+	Assert(idx != -1, "missing exchange rate %s", exchangeRate.ID)
 
 	c.ExchangeRates = slices.Delete(c.ExchangeRates, idx, idx+1)
 	c.AddDomainEvent(ExchangeRateRemovedEvent{
@@ -213,10 +211,6 @@ func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 		}
 	}
 
-	// TODO(rh): But what if another request added an exchange rate between this
-	// request reading and deleting the exchange rate. Changes to an aggregate
-	// really should be serialized as with actors and such rate bugs would be
-	// difficult to troubleshoot.
 	c.AddDomainEvent(CurrencyRemovedEvent{
 		domainEventCommon: domainEventCommon{
 			OccurredAt: removeAt,

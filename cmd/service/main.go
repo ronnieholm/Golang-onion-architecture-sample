@@ -6,14 +6,28 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/google/uuid"
+	"github.com/ronnieholm/resellerloyalty/internal/build"
 	"github.com/ronnieholm/resellerloyalty/internal/core"
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
 )
 
 func main() {
+	var (
+		version   = build.Version
+		buildTime = build.BuildTime
+	)
+	if build.Version == "" {
+		version = "N/A"
+	}
+	if build.BuildTime == "" {
+		buildTime = "N/A"
+	}
+	fmt.Printf("Version %s build at %s.\n\n", version, buildTime)
+
 	config, err := infrastructure.LoadConfig("./configs/service.json")
 	if err != nil {
 		log.Fatalf("error loading config: %v", err)

@@ -33,7 +33,6 @@ const (
 type Product struct {
 	AggregateRoot
 	Code ProductCode
-	// TODO(rh): Navigation property: ProductGroup ProductGroup
 }
 
 func NewProduct(id uuid.UUID, code ProductCode, createdAt time.Time) Product {

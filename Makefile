@@ -30,20 +30,19 @@ build:
 		go test -c -o $(TESTDIR)/$$out.test $$pkg 1>/dev/null || exit $$? ; \
 	done
 
+# Test without race detector.
 .PHONY: test
 test:
-	# TODO(rh): only apply 1 to certain tests?
-	$(GO) test ./... -v -race -parallel 1 -shuffle=on 
+	$(GO) test ./... -v -parallel 1 -shuffle=on 
 
-# Race detector
+# Test with race detector.
 #.PHONY: test-race
-#test-race:
-#	$(GO) test ./... -race -v
+test-race:
+	$(GO) test ./... -v -race -parallel 1 -shuffle=on 
 
 .PHONY: lint
 lint:
-	# TODO(rh): install as tool
-	golangci-lint run ./...
+	go tool golangci-lint run ./...
 
 .PHONY: fmt
 fmt:
@@ -57,7 +56,7 @@ vet:
 generate:
 	$(GO) generate ./...
 
-# Generate build info to embed in executables.
+# Generate build info to embed in binaries.
 gen-build-info:
 	@$(eval VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0"))
 	@$(eval BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ"))
@@ -75,8 +74,8 @@ release: clean gen-build-info
 			OUT=dist/$${exe}-$${OS}-$${ARCH}; \
 			if [ "$${OS}" = "windows" ]; then OUT=$${OUT}.exe; fi; \
 			CGO_ENABLED=0 GOOS=$${OS} GOARCH=$${ARCH} $(GO) build -ldflags \
-				"-X '$(MODULE)/internal/version.Version=$(VERSION)' \
-				 -X '$(MODULE)/internal/version.BuildTime=$(BUILD_TIME)'" -o $${OUT} ./cmd/$${exe}; \
+				"-X '$(MODULE)/internal/build.Version=$(VERSION)' \
+				 -X '$(MODULE)/internal/build.BuildTime=$(BUILD_TIME)'" -o $${OUT} ./cmd/$${exe}; \
 		done; \
 	done
 

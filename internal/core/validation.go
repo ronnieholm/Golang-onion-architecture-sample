@@ -83,9 +83,7 @@ func ValidateStringCurrencyCode(field string, value string, err *ValidationError
 
 func ValidateFloat64InclusiveRange(field string, value float64, min, max float64, err *ValidationError) {
 	if value < min || value > max {
-		// TODO(rh): %f always prints six decimal places. Consider removing
-		// trailing zeros and include more than six if necessary.
-		message := fmt.Sprintf("Must be between %f and %f inclusive, but was %f", min, max, value)
+		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", min, max, value)
 		err.Add(field, message)
 	}
 }
