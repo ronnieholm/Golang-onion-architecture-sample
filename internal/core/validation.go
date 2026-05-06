@@ -47,9 +47,9 @@ func (e *ValidationError) Error() string {
 	return b.String()
 }
 
-func Validate[R validator](req R) error {
+func Validate[R Validator](req R) error {
 	err := &ValidationError{}
-	req.validate(err)
+	req.Validate(err)
 
 	// Having this function return error instead of ValidationError is more
 	// idiomatic. Then nil may be returned on no error, which changes a call

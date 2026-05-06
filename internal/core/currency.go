@@ -225,7 +225,7 @@ type CreateCurrencyCommand struct {
 	Code string
 }
 
-func (req CreateCurrencyCommand) validate(err *ValidationError) {
+func (req CreateCurrencyCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateStringCurrencyCode("Code", req.Code, err)
 }
@@ -237,10 +237,6 @@ type CreateCurrencyHandler struct {
 }
 
 func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	found, err := h.Currencies.ExistByID(ctx, req.ID)
 	if err != nil {
 		return err
@@ -265,7 +261,7 @@ type RemoveCurrencyCommand struct {
 	Code string
 }
 
-func (req RemoveCurrencyCommand) validate(err *ValidationError) {
+func (req RemoveCurrencyCommand) Validate(err *ValidationError) {
 	ValidateStringCurrencyCode("Code", req.Code, err)
 }
 
@@ -276,10 +272,6 @@ type RemoveCurrencyHandler struct {
 }
 
 func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -301,7 +293,7 @@ type AddExchangeRateCommand struct {
 	From Date
 }
 
-func (req AddExchangeRateCommand) validate(err *ValidationError) {
+func (req AddExchangeRateCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateStringCurrencyCode("Code", req.Code, err)
 	ValidateFloat64InclusiveRange("Rate", req.Rate, MinExchangeRate, MaxExchangeRate, err)
@@ -316,10 +308,6 @@ type AddExchangeRateHandler struct {
 }
 
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -353,7 +341,7 @@ type UpdateExchangeRateCommand struct {
 	From Date
 }
 
-func (req UpdateExchangeRateCommand) validate(err *ValidationError) {
+func (req UpdateExchangeRateCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateStringCurrencyCode("Code", req.Code, err)
 	ValidateFloat64InclusiveRange("Rate", req.Rate, MinExchangeRate, MaxExchangeRate, err)
@@ -368,10 +356,6 @@ type UpdateExchangeRateHandler struct {
 }
 
 func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchangeRateCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -411,7 +395,7 @@ type RemoveExchangeRateCommand struct {
 	Code string
 }
 
-func (req RemoveExchangeRateCommand) validate(err *ValidationError) {
+func (req RemoveExchangeRateCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateStringCurrencyCode("Code", req.Code, err)
 }
@@ -423,10 +407,6 @@ type RemoveExchangeRateHandler struct {
 }
 
 func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchangeRateCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return err
@@ -455,7 +435,7 @@ type GetCurrencyQuery struct {
 	Code string
 }
 
-func (req GetCurrencyQuery) validate(err *ValidationError) {
+func (req GetCurrencyQuery) Validate(err *ValidationError) {
 	ValidateStringCurrencyCode("Code", req.Code, err)
 }
 
@@ -464,10 +444,6 @@ type GetCurrencyHandler struct {
 }
 
 func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
-	if err := Validate(req); err != nil {
-		return nil, err
-	}
-
 	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err

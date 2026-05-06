@@ -138,7 +138,7 @@ type CreateTierDiscountCommand struct {
 	From                 Date
 }
 
-func (req CreateTierDiscountCommand) validate(err *ValidationError) {
+func (req CreateTierDiscountCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
 	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
@@ -151,10 +151,6 @@ type CreateTierDiscountHandler struct {
 }
 
 func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDiscountCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	found, err := h.TierDiscounts.ExistByID(ctx, req.ID)
 	if err != nil {
 		return err
@@ -180,7 +176,7 @@ type UpdateTierDiscountCommand struct {
 	From                 Date
 }
 
-func (req UpdateTierDiscountCommand) validate(err *ValidationError) {
+func (req UpdateTierDiscountCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
 	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
@@ -193,10 +189,6 @@ type UpdateTierDiscountHandler struct {
 }
 
 func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDiscountCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
 	if err != nil {
 		return err
@@ -220,7 +212,7 @@ type RemoveTierDiscountCommand struct {
 	ID uuid.UUID
 }
 
-func (req RemoveTierDiscountCommand) validate(err *ValidationError) {
+func (req RemoveTierDiscountCommand) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 }
 
@@ -231,10 +223,6 @@ type RemoveTierDiscountHandler struct {
 }
 
 func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDiscountCommand) error {
-	if err := Validate(req); err != nil {
-		return err
-	}
-
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
 	if err != nil {
 		return err
@@ -253,7 +241,7 @@ type GetTierDiscountQuery struct {
 	ID uuid.UUID
 }
 
-func (req GetTierDiscountQuery) validate(err *ValidationError) {
+func (req GetTierDiscountQuery) Validate(err *ValidationError) {
 	ValidateUUIDNotZero("ID", req.ID, err)
 }
 
@@ -262,10 +250,6 @@ type GetTierDiscountHandler struct {
 }
 
 func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQuery) (*TierDiscount, error) {
-	if err := Validate(req); err != nil {
-		return nil, err
-	}
-
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
 	if err != nil {
 		return nil, err
