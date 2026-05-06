@@ -95,7 +95,7 @@ func (ct *CurrencyTests) TestCreateCurrencyValid() {
 		_, err := ct.dispatcher.CreateCurrency(ct.ctx, fx.CreateCurrency)
 		require.NoError(t, err)
 
-		c, err := ct.dispatcher.GetCurrencyByCode(ct.ctx, fx.GetCurrecyByCode)
+		c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.GetCurrecyByCode)
 		require.NoError(t, err)
 		assert.Equal(t, fx.CreateCurrency.ID, c.ID)
 		assert.Equal(t, fx.CreateCurrency.Code, c.Code)
@@ -156,7 +156,7 @@ func (ct *CurrencyTests) TestAddExchangeRateUniqueFromValid() {
 		fx := AddExchangeRateUniqueFromValidGen().Draw(t, "fx")
 		ct.setupExchangeRates(t, fx)
 
-		c, err := ct.dispatcher.GetCurrencyByCode(ct.ctx, fx.GetCurrencyByCode)
+		c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.GetCurrencyByCode)
 		require.NoError(t, err)
 		require.Len(t, fx.Expected, len(c.ExchangeRates))
 
@@ -212,7 +212,7 @@ func (ct *CurrencyTests) TestUpdateExchangeRateValid() {
 		_, err := ct.dispatcher.UpdateExchangeRate(ct.ctx, fx.UpdateExchangeRate)
 		require.NoError(t, err)
 
-		currency, err := ct.dispatcher.GetCurrencyByCode(ct.ctx, fx.Base.GetCurrencyByCode)
+		currency, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrencyByCode)
 		require.NoError(t, err)
 
 		for _, er := range currency.ExchangeRates {
@@ -300,7 +300,7 @@ func (ct *CurrencyTests) TestRemoveCurrencyValid() {
 		_, err := ct.dispatcher.RemoveCurrency(ct.ctx, fx.RemoveCurrencyCommand)
 
 		require.NoError(t, err)
-		_, err = ct.dispatcher.GetCurrencyByCode(ct.ctx, fx.Base.GetCurrencyByCode)
+		_, err = ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrencyByCode)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
@@ -352,7 +352,7 @@ func (ct *CurrencyTests) TestRemoveExchangeRateValid() {
 		_, err := ct.dispatcher.RemoveExchangeRate(ct.ctx, fx.RemoveExchangeRate)
 
 		require.NoError(t, err)
-		c, err := ct.dispatcher.GetCurrencyByCode(ct.ctx, fx.Base.GetCurrencyByCode)
+		c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrencyByCode)
 		require.NoError(t, err)
 		require.Len(t, c.ExchangeRates, len(fx.WantExchangeRateIds))
 

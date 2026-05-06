@@ -107,3 +107,18 @@ func ValidateDateInclusiveRange(field string, value, min, max Date, err *Validat
 		err.Add(field, message)
 	}
 }
+
+func ValidateDiscountPercentages(authorizedField, advancedField, premiumField string, authorizedValue, advancedValue, premiumValue float64, err *ValidationError) {
+	ValidateFloat64InclusiveRange(authorizedField, authorizedValue, 0, 100, err)
+	ValidateFloat64InclusiveRange(advancedField, advancedValue, 0, 100, err)
+	ValidateFloat64InclusiveRange(premiumField, premiumValue, 0, 100, err)
+
+	if authorizedValue > advancedValue {
+		message := fmt.Sprintf("Must be between 0 and %g inclusive, but was %g", advancedValue, authorizedValue)
+		err.Add(authorizedField, message)
+	}
+	if advancedValue > premiumValue {
+		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", authorizedValue, premiumValue, advancedValue)
+		err.Add(advancedField, message)
+	}
+}

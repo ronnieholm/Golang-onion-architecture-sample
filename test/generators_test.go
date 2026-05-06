@@ -104,7 +104,7 @@ type CreateCurrencyValidFixture struct {
 	Clock            core.Clock
 	Noise            []core.CreateCurrencyCommand
 	CreateCurrency   core.CreateCurrencyCommand
-	GetCurrecyByCode core.GetCurrencyByCodeQuery
+	GetCurrecyByCode core.GetCurrencyQuery
 }
 
 func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
@@ -126,7 +126,7 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
 		create.Code = codes[len(codes)-1]
 
-		get := core.GetCurrencyByCodeQuery{
+		get := core.GetCurrencyQuery{
 			Code: create.Code,
 		}
 
@@ -224,7 +224,7 @@ type AddExchangeRateUniqueFromValidFixture = struct {
 	Clock             core.Clock
 	CreateCurrency    core.CreateCurrencyCommand
 	AddExchangeRates  []core.AddExchangeRateCommand
-	GetCurrencyByCode core.GetCurrencyByCodeQuery
+	GetCurrencyByCode core.GetCurrencyQuery
 	Expected          map[uuid.UUID]core.AddExchangeRateCommand
 }
 
@@ -252,7 +252,7 @@ func AddExchangeRateUniqueFromValidGen() *rapid.Generator[AddExchangeRateUniqueF
 			expected[add.ID] = add
 		}
 
-		get := core.GetCurrencyByCodeQuery{
+		get := core.GetCurrencyQuery{
 			Code: create.Code,
 		}
 

@@ -125,7 +125,13 @@ type Dispatcher struct {
 	AddExchangeRate    Handler[core.AddExchangeRateCommand, Empty]
 	UpdateExchangeRate Handler[core.UpdateExchangeRateCommand, Empty]
 	RemoveExchangeRate Handler[core.RemoveExchangeRateCommand, Empty]
-	GetCurrencyByCode  Handler[core.GetCurrencyByCodeQuery, *core.Currency]
+	GetCurrency        Handler[core.GetCurrencyQuery, *core.Currency]
+
+	// TierDiscount
+	CreateTierDiscount Handler[core.CreateTierDiscountCommand, Empty]
+	UpdateTierDiscount Handler[core.UpdateTierDiscountCommand, Empty]
+	RemoveTierDiscount Handler[core.RemoveTierDiscountCommand, Empty]
+	GetTierDiscount    Handler[core.GetTierDiscountQuery, *core.TierDiscount]
 }
 
 func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption) Dispatcher {
@@ -164,6 +170,9 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	currencyStore := &PgCurrencyStore{
 		Pool: pool,
 	}
+	tierDiscountStore := &PgTierDiscountStore{
+		Pool: pool,
+	}
 
 	// The benefit of setting up dependencies before any calls are dispatched is
 	// that allocations are kept to a minimum across the lifetime of the
@@ -178,6 +187,8 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	// It follows that any static dependency used to construct a handler must be
 	// thread-safe. Non-static depedencies should be passed through the Handle
 	// method, and depending on their nature may also have to be thread-safe.
+
+	// Currency
 	createCurrency := core.CreateCurrencyHandler{
 		Currencies: currencyStore,
 		Clock:      o.clock,
@@ -198,8 +209,29 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 		Currencies: currencyStore,
 		Clock:      o.clock,
 	}
-	getCurrencyByCode := core.GetCurrencyByCodeHandler{
+	getCurrency := core.GetCurrencyHandler{
 		Currencies: currencyStore,
+	}
+
+	// TierDiscount
+	// CreateTierDiscount Handler[core.CreateTierDiscountCommand, Empty]
+	// UpdateTierDiscount Handler[core.UpdateTierDiscountCommand, Empty]
+	// RemoveTierDiscount Handler[core.RemoveTierDiscountCommand, Empty]
+	// GetTierDiscount    Handler[core.GetTierDiscountQuery, *core.TierDiscount]
+	createTierDiscount := core.CreateTierDiscountHandler{
+		TierDiscounts: tierDiscountStore,
+		Clock:         o.clock,
+	}
+	updateTierDiscount := core.UpdateTierDiscountHandler{
+		TierDiscounts: tierDiscountStore,
+		Clock:         o.clock,
+	}
+	removeTierDiscount := core.RemoveTierDiscountHandler{
+		TierDiscounts: tierDiscountStore,
+		Clock:         o.clock,
+	}
+	getTierDiscount := core.GetTierDiscountHandler{
+		TierDiscounts: tierDiscountStore,
 	}
 
 	return Dispatcher{
@@ -209,6 +241,8 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 		// between (1) changing the handler in core to return (Empty, error) and
 		// changing every return path inside the handler to Empty, err or (2)
 		// patch the signature as below. To avoid polluting core, (2) is chosen.
+
+		// Currency
 		CreateCurrency: Decorate("CreateCurrency", func(ctx context.Context, req core.CreateCurrencyCommand) (Empty, error) {
 			return Empty{}, createCurrency.Handle(ctx, req)
 		}),
@@ -224,7 +258,19 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 		RemoveExchangeRate: Decorate("RemoveExchangeRate", func(ctx context.Context, req core.RemoveExchangeRateCommand) (Empty, error) {
 			return Empty{}, removeExchangeRate.Handle(ctx, req)
 		}),
-		GetCurrencyByCode: Decorate("GetCurrecyByCode", getCurrencyByCode.Handle),
+		GetCurrency: Decorate("GetCurrecy", getCurrency.Handle),
+
+		// TierDiscount
+		CreateTierDiscount: Decorate("CreateTierDiscount", func(ctx context.Context, req core.CreateTierDiscountCommand) (Empty, error) {
+			return Empty{}, createTierDiscount.Handle(ctx, req)
+		}),
+		RemoveTierDiscount: Decorate("RemoveTierDiscount", func(ctx context.Context, req core.RemoveTierDiscountCommand) (Empty, error) {
+			return Empty{}, removeTierDiscount.Handle(ctx, req)
+		}),
+		UpdateTierDiscount: Decorate("UpdateTierDiscount", func(ctx context.Context, req core.UpdateTierDiscountCommand) (Empty, error) {
+			return Empty{}, updateTierDiscount.Handle(ctx, req)
+		}),
+		GetTierDiscount: Decorate("GetTierDiscount", getTierDiscount.Handle),
 	}
 }
 

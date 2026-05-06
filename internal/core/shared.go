@@ -69,11 +69,14 @@ func ValueEquals[T comparable](v, other T) bool {
 
 type AggregateRoot struct {
 	Entity
-	Version      int
+	Version      int32
 	DomainEvents []DomainEvent
 }
 
 func (a *AggregateRoot) AddDomainEvent(e DomainEvent) {
+	if a.DomainEvents == nil {
+		a.DomainEvents = []DomainEvent{}
+	}
 	a.DomainEvents = append(a.DomainEvents, e)
 }
 

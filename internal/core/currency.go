@@ -102,11 +102,9 @@ type Currency struct {
 func NewCurrency(id uuid.UUID, code string, createdAt time.Time) Currency {
 	c := Currency{
 		AggregateRoot: AggregateRoot{
-			DomainEvents: []DomainEvent{},
 			Entity: Entity{
 				ID:        id,
 				CreatedAt: createdAt,
-				UpdatedAt: nil,
 			},
 		},
 		Code:          code,
@@ -149,6 +147,7 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 }
 
 func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate float64, from Date, updatedAt time.Time) error {
+	// TODO(rh): move check to ExchangeRate entity? Similar for other methods.
 	today := DateFromTime(updatedAt)
 	if !from.After(today) {
 		return NewDomainError(
@@ -197,12 +196,12 @@ func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time
 func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 	today := DateFromTime(removeAt)
 	canRemove := !slices.ContainsFunc(c.ExchangeRates, func(e *ExchangeRate) bool {
-		return e.From.Compare(today) <= 0
+		return e.From.Compare(today) <= 0 // TODO(rh): use !e.From.Ater(today) which is simpler to read.
 	})
 	if !canRemove {
 		return NewDomainError(
 			CurrencyRemoveRequiresFutureFrom,
-			fmt.Sprintf("remove currency requires all exchange rates to have from after today %s", today.String()))
+			fmt.Sprintf("remove currency requires all exchange rates to have from after today %s", today))
 	}
 
 	for i := len(c.ExchangeRates) - 1; i >= 0; i-- {
@@ -252,7 +251,7 @@ func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCom
 
 	found, err = h.Currencies.ExistByCode(ctx, req.Code)
 	if err != nil {
-		return err
+		return err // TODO(rh): add context (and other places)
 	}
 	if found {
 		return NewConflictError("Currency", "Code", req.Code)
@@ -306,12 +305,12 @@ type AddExchangeRateHandler struct {
 	Clock      Clock
 }
 
-func (h AddExchangeRateHandler) validate(c AddExchangeRateCommand, err *ValidationError) {
-	ValidateUUIDNotZero("ID", c.ID, err)
-	ValidateStringCurrencyCode("Code", c.Code, err)
-	ValidateFloat64InclusiveRange("Rate", c.Rate, MinExchangeRate, MaxExchangeRate, err)
-	ValidateFloat64DecimalPlaces("Rate", c.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
-	ValidateDateInclusiveRange("From", c.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+func (h AddExchangeRateHandler) validate(req AddExchangeRateCommand, err *ValidationError) {
+	ValidateUUIDNotZero("ID", req.ID, err)
+	ValidateStringCurrencyCode("Code", req.Code, err)
+	ValidateFloat64InclusiveRange("Rate", req.Rate, MinExchangeRate, MaxExchangeRate, err)
+	ValidateFloat64DecimalPlaces("Rate", req.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
+	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
 }
 
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
@@ -397,6 +396,7 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 		return NewConflictError("ExchangeRate", "From", req.From.String())
 	}
 
+	// TODO(rh): why *exchangeRateByID and not exchangeRateByID to minimize copying? Is exchangeRate large enough to avoid copying? Over 64 bytes.
 	if err := currency.UpdateExchangeRate(*exchangeRateByID, req.Rate, req.From, h.Clock.NowUTC()); err != nil {
 		return err
 	}
@@ -447,29 +447,29 @@ func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchang
 	return h.Currencies.Save(ctx, currency)
 }
 
-type GetCurrencyByCodeQuery struct {
+type GetCurrencyQuery struct {
 	Code string
 }
 
-type GetCurrencyByCodeHandler struct {
+type GetCurrencyHandler struct {
 	Currencies CurrencyStore
 }
 
-func (h GetCurrencyByCodeHandler) validate(qry GetCurrencyByCodeQuery, err *ValidationError) {
-	ValidateStringCurrencyCode("Code", qry.Code, err)
+func (h GetCurrencyHandler) validate(req GetCurrencyQuery, err *ValidationError) {
+	ValidateStringCurrencyCode("Code", req.Code, err)
 }
 
-func (h GetCurrencyByCodeHandler) Handle(ctx context.Context, qry GetCurrencyByCodeQuery) (*Currency, error) {
-	if err := Validate(qry, h.validate); err != nil {
+func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
+	if err := Validate(req, h.validate); err != nil {
 		return nil, err
 	}
 
-	currency, err := h.Currencies.GetByCode(ctx, qry.Code)
+	currency, err := h.Currencies.GetByCode(ctx, req.Code)
 	if err != nil {
 		return nil, err
 	}
 	if currency == nil {
-		return nil, NewNotFoundError("Currency", "Code", qry.Code)
+		return nil, NewNotFoundError("Currency", "Code", req.Code)
 	}
 	return currency, nil
 }
