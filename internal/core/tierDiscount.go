@@ -60,7 +60,6 @@ type TierDiscount struct {
 func NewTierDiscount(id uuid.UUID, percentages DiscountPercentages, from Date, createdAt time.Time) TierDiscount {
 	td := TierDiscount{
 		AggregateRoot: AggregateRoot{
-			DomainEvents: []DomainEvent{},
 			Entity: Entity{
 				ID:        id,
 				CreatedAt: createdAt,
