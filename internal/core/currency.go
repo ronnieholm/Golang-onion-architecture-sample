@@ -15,7 +15,6 @@ type CurrencyStore interface {
 	ExistByID(context.Context, uuid.UUID) (bool, error)
 	ExistByCode(context.Context, string) (bool, error)
 	GetByCode(context.Context, string) (*Currency, error)
-	Save(context.Context, *Currency) error
 }
 
 type CurrencyCreatedEvent struct {
@@ -228,6 +227,7 @@ type CreateCurrencyCommand struct {
 
 type CreateCurrencyHandler struct {
 	Currencies CurrencyStore
+	Projector  StoreProjector
 	Clock      Clock
 }
 
@@ -258,7 +258,7 @@ func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCom
 	}
 
 	currency := NewCurrency(req.ID, req.Code, h.Clock.NowUTC())
-	return h.Currencies.Save(ctx, &currency)
+	return h.Projector.Apply(ctx, &currency)
 }
 
 type RemoveCurrencyCommand struct {
@@ -267,6 +267,7 @@ type RemoveCurrencyCommand struct {
 
 type RemoveCurrencyHandler struct {
 	Currencies CurrencyStore
+	Projector  StoreProjector
 	Clock      Clock
 }
 
@@ -290,7 +291,7 @@ func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCom
 	if err := currency.RemoveCurrency(h.Clock.NowUTC()); err != nil {
 		return err
 	}
-	return h.Currencies.Save(ctx, currency)
+	return h.Projector.Apply(ctx, currency)
 }
 
 type AddExchangeRateCommand struct {
@@ -302,6 +303,7 @@ type AddExchangeRateCommand struct {
 
 type AddExchangeRateHandler struct {
 	Currencies CurrencyStore
+	Projector  StoreProjector
 	Clock      Clock
 }
 
@@ -341,7 +343,7 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 	if err != nil {
 		return err
 	}
-	return h.Currencies.Save(ctx, currency)
+	return h.Projector.Apply(ctx, currency)
 }
 
 type UpdateExchangeRateCommand struct {
@@ -353,6 +355,7 @@ type UpdateExchangeRateCommand struct {
 
 type UpdateExchangeRateHandler struct {
 	Currencies CurrencyStore
+	Projector  StoreProjector
 	Clock      Clock
 }
 
@@ -400,7 +403,7 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 	if err := currency.UpdateExchangeRate(*exchangeRateByID, req.Rate, req.From, h.Clock.NowUTC()); err != nil {
 		return err
 	}
-	return h.Currencies.Save(ctx, currency)
+	return h.Projector.Apply(ctx, currency)
 }
 
 type RemoveExchangeRateCommand struct {
@@ -410,6 +413,7 @@ type RemoveExchangeRateCommand struct {
 
 type RemoveExchangeRateHandler struct {
 	Currencies CurrencyStore
+	Projector  StoreProjector
 	Clock      Clock
 }
 
@@ -444,7 +448,7 @@ func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchang
 	if err := currency.RemoveExchangeRate(exchangeRate, h.Clock.NowUTC()); err != nil {
 		return err
 	}
-	return h.Currencies.Save(ctx, currency)
+	return h.Projector.Apply(ctx, currency)
 }
 
 type GetCurrencyQuery struct {

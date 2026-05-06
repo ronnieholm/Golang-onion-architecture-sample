@@ -64,27 +64,27 @@ type PgCurrencyStore struct {
 	Pool *pgxpool.Pool
 }
 
-func (r PgCurrencyStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, error) {
+func (cs PgCurrencyStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, error) {
 	sql := "SELECT EXISTS (SELECT 1 FROM currency WHERE id = $1)"
 	found := false
-	err := r.Pool.QueryRow(ctx, sql, id).Scan(&found)
+	err := cs.Pool.QueryRow(ctx, sql, id).Scan(&found)
 	if err != nil {
 		return found, fmt.Errorf("exists by id: %s: %w", id, err)
 	}
 	return found, nil
 }
 
-func (r PgCurrencyStore) ExistByCode(ctx context.Context, code string) (bool, error) {
+func (cs PgCurrencyStore) ExistByCode(ctx context.Context, code string) (bool, error) {
 	sql := "SELECT EXISTS (SELECT 1 FROM currency WHERE code = $1)"
 	found := false
-	err := r.Pool.QueryRow(ctx, sql, code).Scan(&found)
+	err := cs.Pool.QueryRow(ctx, sql, code).Scan(&found)
 	if err != nil {
 		return found, fmt.Errorf("exists by code: %s: %w", code, err)
 	}
 	return found, nil
 }
 
-func (r PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*core.Currency {
+func (cs PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*core.Currency {
 	currencies := map[uuid.UUID]*core.Currency{}
 	for _, c := range flat {
 		c2, ok := currencies[c.CID]
@@ -104,14 +104,14 @@ func (r PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*core
 	return currencies
 }
 
-func (r PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Currency, error) {
+func (cs PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Currency, error) {
 	var sql = `
 		SELECT c.id, c.code, c.version, c.created_at, c.updated_at,
   			   e.id, e.rate, e.from, e.created_at, e.updated_at
 		FROM currency c
 		LEFT JOIN exchange_rate e ON c.id = e.currency_id
 		WHERE c.code = $1`
-	rows, _ := r.Pool.Query(ctx, sql, code)
+	rows, _ := cs.Pool.Query(ctx, sql, code)
 	currencies, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[currencyFlat])
 	if err != nil {
 		return nil, fmt.Errorf("get by code: %s: %w", code, err)
@@ -119,7 +119,7 @@ func (r PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Curr
 	if len(currencies) == 0 {
 		return nil, nil
 	}
-	c := r.mapCurrencies(currencies)
+	c := cs.mapCurrencies(currencies)
 	core.Assert(len(c) == 1, "data inconsistency")
 	for _, v := range c {
 		return v, nil
@@ -127,14 +127,18 @@ func (r PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Curr
 	panic("unreachable")
 }
 
-func (r PgCurrencyStore) withTx(ctx context.Context, fn func(pgx.Tx) error) (err error) {
+type PgStoreProjector struct {
+	Pool *pgxpool.Pool
+}
+
+func (sp PgStoreProjector) withTx(ctx context.Context, fn func(pgx.Tx) error) (err error) {
 	// While pgx batching may be more efficient, don't use it as it makes
 	// troubleshooting which query failed more difficult and also comes with
 	//
 	// If transactional cross-repository Save is ever needed, instead of each
 	// repository's Save method creating a transaction, pass in a transaction.
 	// Alternatively, create a single Save method spanning all repositories.
-	tx, err := r.Pool.Begin(ctx)
+	tx, err := sp.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to begin tx: %w", err)
 	}
@@ -170,64 +174,92 @@ func (r PgCurrencyStore) withTx(ctx context.Context, fn func(pgx.Tx) error) (err
 	return err
 }
 
-// TODO(rh): generalize to any aggregate. The order of aggregate may cause deadlock in postgres so order should be deterministic (dep order?)
-func (_ PgCurrencyStore) enforceOptimisticLock(ctx context.Context, tx pgx.Tx, entity *core.Currency) error {
-	q := `
-		UPDATE currency
+var entityTableMap = map[reflect.Type]string{
+	reflect.TypeFor[*core.Currency]():     "currency",
+	reflect.TypeFor[*core.TierDiscount](): "tier_discount",
+}
+
+func (sp PgStoreProjector) enforceOptimisticLock(ctx context.Context, tx pgx.Tx, aggregate core.Aggregate) error {
+	root := aggregate.GetAggregateRoot()
+
+	t := reflect.TypeOf(aggregate)
+	table, ok := entityTableMap[t]
+	if !ok {
+		panic(fmt.Sprintf("unhandled type: %T", aggregate))
+	}
+
+	q := fmt.Sprintf(`
+		UPDATE %s
 		SET version = version + 1
-		WHERE id = $1 AND version = $2`
-	tag, err := tx.Exec(ctx, q, entity.ID, entity.Version)
+		WHERE id = $1 AND version = $2`, table)
+	tag, err := tx.Exec(ctx, q, root.ID, root.Version)
 	if err != nil {
-		return fmt.Errorf("currency optimistic lock (id=%s) execution failed: %w", entity.ID, err)
+		return fmt.Errorf("%s optimistic lock (id=%s) execution failed: %w", table, root.ID, err)
 	}
 
 	count := tag.RowsAffected()
 	if count == 0 {
-		return core.NewDataStaleError("currency", entity.ID)
+		return core.NewDataStaleError(sp.typeName(aggregate), root.ID)
 	} else if tag.RowsAffected() != 1 {
-		return fmt.Errorf("currency optimistic lock (id=%s) unexpected row count: %d", entity.ID, count)
+		return fmt.Errorf("%s optimistic lock (id=%s) unexpected row count: %d", table, root.ID, count)
 	}
 	return nil
 }
 
-// TODO(rh): splitting into writer and reader, save should be variadic on aggregates. Then a handler you update multiple (in the case of an event publishing) and pass aggregate in dependency order and changes would be saved in a single tx.
-func (r PgCurrencyStore) Save(ctx context.Context, entity *core.Currency) error {
-	if len(entity.DomainEvents) == 0 {
-		return nil
-	}
-	return r.withTx(ctx, func(tx pgx.Tx) error {
-		if entity.Version > 0 {
-			err := r.enforceOptimisticLock(ctx, tx, entity)
-			if err != nil {
-				return err
+// Apply enables projecting changes to one or more aggregates of same or
+// different types to the database. In case of event publishing within a
+// handler, different types of aggregates may be at play. Except for event
+// publishing across aggregates, one shouldn't update one aggregate from
+// another.
+//
+// Passing different types of aggregates, care must be taken to avoid a deadlock
+// in the database during optimistic lock acquisition across roots. The easiest
+// way to avoid such deadlock is to always pass the types in the same order
+// across calls to Apply.
+func (sp PgStoreProjector) Apply(ctx context.Context, aggregates ...core.Aggregate) error {
+	// TODO(rh): In the future have apply stort types in reverse depedency order.
+	return sp.withTx(ctx, func(tx pgx.Tx) error {
+		for _, aggregate := range aggregates {
+			root := aggregate.GetAggregateRoot()
+			if len(root.DomainEvents) == 0 {
+				continue
 			}
-		}
 
-		for _, event := range entity.DomainEvents {
-			if err := r.logDomainEvent(ctx, tx, entity.ID, entity.Version, event); err != nil {
-				return err
+			if root.Version > 0 {
+				err := sp.enforceOptimisticLock(ctx, tx, aggregate)
+				if err != nil {
+					return err
+				}
 			}
-			if err := r.projectDomainEvent(ctx, tx, event); err != nil {
-				return err
-			}
-		}
 
-		entity.ClearDomainEvents()
+			for _, event := range root.DomainEvents {
+				if err := sp.persist(ctx, tx, root.ID, root.Version, event); err != nil {
+					return err
+				}
+				if err := sp.project(ctx, tx, event); err != nil {
+					return err
+				}
+			}
+			root.ClearDomainEvents()
+		}
 		return nil
 	})
 }
 
-func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregateID uuid.UUID, version int32, event core.DomainEvent) error {
-	// Remove "core." prefix from event type name.
-	t := reflect.TypeOf(event)
+func (sp PgStoreProjector) typeName(ty any) string {
+	// Remove "core." prefix from type name.
+	t := reflect.TypeOf(ty)
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	eventType := t.Name()
+	return t.Name()
+}
 
+func (sp PgStoreProjector) persist(ctx context.Context, tx pgx.Tx, aggregateID uuid.UUID, version int32, event core.DomainEvent) error {
+	eventType := sp.typeName(event)
 	b, err := json.Marshal(event)
 	if err != nil {
-		return fmt.Errorf("marshal event %s): %w", t, err)
+		return fmt.Errorf("marshal event %s): %w", eventType, err)
 	}
 
 	q := `INSERT INTO domain_event (aggregate_id, type, payload, version, occurred_at) values ($1, $2, $3, $4, $5)`
@@ -246,7 +278,7 @@ func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregat
 // that doesn't care if RowsAffected is 0, or add a boolean flag to the existing
 // helper. Otherwise, the version above is the cleanest way to handle strictly
 // enforced 1-row changes.
-func (r PgCurrencyStore) checkExec(err error, tag pgconn.CommandTag, event core.DomainEvent, id uuid.UUID) error {
+func (sp PgStoreProjector) checkExec(err error, tag pgconn.CommandTag, event core.DomainEvent, id uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("project domain event %T (id=%s) execution failed: %w", event, id, err)
 	}
@@ -256,30 +288,30 @@ func (r PgCurrencyStore) checkExec(err error, tag pgconn.CommandTag, event core.
 	return nil
 }
 
-func (r PgCurrencyStore) projectDomainEvent(ctx context.Context, tx pgx.Tx, event core.DomainEvent) error {
+func (sp PgStoreProjector) project(ctx context.Context, tx pgx.Tx, event core.DomainEvent) error {
 	switch e := event.(type) {
 	case core.CurrencyCreatedEvent:
 		q := "INSERT INTO currency (id, code, version, created_at) VALUES ($1, $2, $3, $4)"
 		tag, err := tx.Exec(ctx, q, e.ID, e.Code, 1, e.OccurredAt)
-		return r.checkExec(err, tag, e, e.ID)
+		return sp.checkExec(err, tag, e, e.ID)
 	case core.CurrencyRemovedEvent:
 		tag, err := tx.Exec(ctx, "DELETE FROM currency WHERE id = $1", e.ID)
-		return r.checkExec(err, tag, e, e.ID)
+		return sp.checkExec(err, tag, e, e.ID)
 	case core.ExchangeRateAddedEvent:
 		q := `INSERT INTO exchange_rate (id, currency_id, rate, "from", created_at) values ($1, $2, $3, $4, $5)`
 		tag, err := tx.Exec(ctx, q, e.ExchangeRateID, e.CurrencyID, e.Rate, e.From, e.OccurredAt)
-		return r.checkExec(err, tag, e, e.ExchangeRateID)
+		return sp.checkExec(err, tag, e, e.ExchangeRateID)
 	case core.ExchangeRateUpdatedEvent:
 		q2 := `
             UPDATE exchange_rate 
             SET rate = $1, "from" = $2, updated_at = $3 
             WHERE id = $4 AND currency_id = $5`
 		tag, err := tx.Exec(ctx, q2, e.Rate, e.From, e.OccurredAt, e.ExchangeRateID, e.CurrencyID)
-		return r.checkExec(err, tag, e, e.ExchangeRateID)
+		return sp.checkExec(err, tag, e, e.ExchangeRateID)
 	case core.ExchangeRateRemovedEvent:
 		q := "DELETE FROM exchange_rate WHERE id = $1 AND currency_id = $2"
 		tag, err := tx.Exec(ctx, q, e.ExchangeRateID, e.CurrencyID)
-		return r.checkExec(err, tag, e, e.ExchangeRateID)
+		return sp.checkExec(err, tag, e, e.ExchangeRateID)
 	default:
 		panic(fmt.Sprintf("unhandled type: %T", e))
 	}
@@ -358,32 +390,4 @@ func (r PgTierDiscountStore) GetByID(ctx context.Context, id uuid.UUID) (*core.T
 		return v, nil
 	}
 	panic("unreachable")
-}
-
-func (r PgTierDiscountStore) Save(ctx context.Context, entity *core.TierDiscount) error {
-	// if len(entity.DomainEvents) == 0 {
-	// 	return nil
-	// }
-	// return r.withTx(ctx, func(tx pgx.Tx) error {
-	// 	if entity.Version > 0 {
-	// 		err := r.enforceOptimisticLock(ctx, tx, entity)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-
-	// 	// TODO(rh): copies event. Use pointer slice inside aggregate or index for loop?
-	// 	for _, event := range entity.DomainEvents {
-	// 		if err := r.logDomainEvent(ctx, tx, entity.ID, entity.Version, event); err != nil {
-	// 			return err
-	// 		}
-	// 		if err := r.projectDomainEvent(ctx, tx, event); err != nil {
-	// 			return err
-	// 		}
-	// 	}
-
-	// 	entity.ClearDomainEvents()
-	// 	return nil
-	// })
-	panic("TODO")
 }

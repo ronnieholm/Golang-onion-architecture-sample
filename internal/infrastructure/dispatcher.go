@@ -173,6 +173,9 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	tierDiscountStore := &PgTierDiscountStore{
 		Pool: pool,
 	}
+	projector := &PgStoreProjector{
+		Pool: pool,
+	}
 
 	// The benefit of setting up dependencies before any calls are dispatched is
 	// that allocations are kept to a minimum across the lifetime of the
@@ -191,22 +194,27 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	// Currency
 	createCurrency := core.CreateCurrencyHandler{
 		Currencies: currencyStore,
+		Projector:  projector,
 		Clock:      o.clock,
 	}
 	removeCurrency := core.RemoveCurrencyHandler{
 		Currencies: currencyStore,
+		Projector:  projector,
 		Clock:      o.clock,
 	}
 	addExchangeRate := core.AddExchangeRateHandler{
 		Currencies: currencyStore,
+		Projector:  projector,
 		Clock:      o.clock,
 	}
 	updateExchangeRate := core.UpdateExchangeRateHandler{
 		Currencies: currencyStore,
+		Projector:  projector,
 		Clock:      o.clock,
 	}
 	removeExchangeRate := core.RemoveExchangeRateHandler{
 		Currencies: currencyStore,
+		Projector:  projector,
 		Clock:      o.clock,
 	}
 	getCurrency := core.GetCurrencyHandler{
@@ -220,14 +228,17 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	// GetTierDiscount    Handler[core.GetTierDiscountQuery, *core.TierDiscount]
 	createTierDiscount := core.CreateTierDiscountHandler{
 		TierDiscounts: tierDiscountStore,
+		Projector:     projector,
 		Clock:         o.clock,
 	}
 	updateTierDiscount := core.UpdateTierDiscountHandler{
 		TierDiscounts: tierDiscountStore,
+		Projector:     projector,
 		Clock:         o.clock,
 	}
 	removeTierDiscount := core.RemoveTierDiscountHandler{
 		TierDiscounts: tierDiscountStore,
+		Projector:     projector,
 		Clock:         o.clock,
 	}
 	getTierDiscount := core.GetTierDiscountHandler{

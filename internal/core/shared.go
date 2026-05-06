@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -84,6 +85,15 @@ func (a *AggregateRoot) ClearDomainEvents() {
 	a.DomainEvents = []DomainEvent{}
 }
 
+type Aggregate interface {
+	GetAggregateRoot() *AggregateRoot
+}
+
+func (a *AggregateRoot) GetAggregateRoot() *AggregateRoot {
+	return a
+}
+
+// TODO(rh): remove?
 type ValueObject struct {
 }
 
@@ -204,6 +214,10 @@ func (e *DomainError) Error() string {
 type Clock interface {
 	NowUTC() time.Time
 	Today() Date
+}
+
+type StoreProjector interface {
+	Apply(context.Context, ...Aggregate) error
 }
 
 // ISO 4217 country codes per https://en.wikipedia.org/wiki/ISO_4217.

@@ -13,7 +13,6 @@ import (
 type TierDiscountStore interface {
 	ExistByID(context.Context, uuid.UUID) (bool, error)
 	GetByID(context.Context, uuid.UUID) (*TierDiscount, error)
-	Save(context.Context, *TierDiscount) error
 }
 
 type TierDiscountCreatedEvent struct {
@@ -142,6 +141,7 @@ type CreateTierDiscountCommand struct {
 
 type CreateTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
+	Projector     StoreProjector
 	Clock         Clock
 }
 
@@ -170,7 +170,7 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 		Premier:    req.PremierPercentage,
 	}
 	tierDiscount := NewTierDiscount(req.ID, dp, req.From, h.Clock.NowUTC())
-	return h.TierDiscounts.Save(ctx, &tierDiscount)
+	return h.Projector.Apply(ctx, &tierDiscount)
 }
 
 type UpdateTierDiscountCommand struct {
@@ -183,6 +183,7 @@ type UpdateTierDiscountCommand struct {
 
 type UpdateTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
+	Projector     StoreProjector
 	Clock         Clock
 }
 
@@ -213,7 +214,7 @@ func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDis
 	if err := tierDiscount.Update(dp, req.From, h.Clock.NowUTC()); err != nil {
 		return err
 	}
-	return h.TierDiscounts.Save(ctx, tierDiscount)
+	return h.Projector.Apply(ctx, tierDiscount)
 }
 
 type RemoveTierDiscountCommand struct {
@@ -222,6 +223,7 @@ type RemoveTierDiscountCommand struct {
 
 type RemoveTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
+	Projector     StoreProjector
 	Clock         Clock
 }
 
@@ -245,7 +247,7 @@ func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDis
 	if err := tierDiscount.Remove(h.Clock.NowUTC()); err != nil {
 		return err
 	}
-	return h.TierDiscounts.Save(ctx, tierDiscount)
+	return h.Projector.Apply(ctx, tierDiscount)
 }
 
 type GetTierDiscountQuery struct {
