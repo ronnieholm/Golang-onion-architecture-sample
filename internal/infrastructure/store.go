@@ -15,10 +15,12 @@ import (
 	"github.com/ronnieholm/resellerloyalty/internal/core"
 )
 
+// Currency
+
 type currencyFlat struct {
 	CID        uuid.UUID
 	CCode      string
-	CVersion   int
+	CVersion   int32
 	CCreatedAt time.Time
 	CUpdatedAt *time.Time
 	EID        *uuid.UUID
@@ -31,8 +33,7 @@ type currencyFlat struct {
 func (c currencyFlat) currency() *core.Currency {
 	return &core.Currency{
 		AggregateRoot: core.AggregateRoot{
-			Version:      c.CVersion,
-			DomainEvents: nil,
+			Version: c.CVersion,
 			Entity: core.Entity{
 				ID:        c.CID,
 				CreatedAt: c.CCreatedAt,
@@ -68,7 +69,7 @@ func (r PgCurrencyStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, err
 	found := false
 	err := r.Pool.QueryRow(ctx, sql, id).Scan(&found)
 	if err != nil {
-		return found, fmt.Errorf("exists by id failed for id=%s: %w", id, err)
+		return found, fmt.Errorf("exists by id: %s: %w", id, err)
 	}
 	return found, nil
 }
@@ -78,7 +79,7 @@ func (r PgCurrencyStore) ExistByCode(ctx context.Context, code string) (bool, er
 	found := false
 	err := r.Pool.QueryRow(ctx, sql, code).Scan(&found)
 	if err != nil {
-		return found, fmt.Errorf("exists by code failed for code=%s: %w", code, err)
+		return found, fmt.Errorf("exists by code: %s: %w", code, err)
 	}
 	return found, nil
 }
@@ -113,17 +114,15 @@ func (r PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Curr
 	rows, _ := r.Pool.Query(ctx, sql, code)
 	currencies, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[currencyFlat])
 	if err != nil {
-		return nil, fmt.Errorf("get by code failed for code=%s: %w", code, err)
+		return nil, fmt.Errorf("get by code: %s: %w", code, err)
 	}
 	if len(currencies) == 0 {
 		return nil, nil
 	}
 	c := r.mapCurrencies(currencies)
-	if len(c) != 1 {
-		panic("unreachable")
-	}
-	for _, x := range c {
-		return x, nil
+	core.Assert(len(c) == 1, "data inconsistency")
+	for _, v := range c {
+		return v, nil
 	}
 	panic("unreachable")
 }
@@ -171,8 +170,8 @@ func (r PgCurrencyStore) withTx(ctx context.Context, fn func(pgx.Tx) error) (err
 	return err
 }
 
-// TODO(rh): generalize to any aggregate.
-func (r PgCurrencyStore) enforceOptimisticLock(ctx context.Context, tx pgx.Tx, entity *core.Currency) error {
+// TODO(rh): generalize to any aggregate. The order of aggregate may cause deadlock in postgres so order should be deterministic (dep order?)
+func (_ PgCurrencyStore) enforceOptimisticLock(ctx context.Context, tx pgx.Tx, entity *core.Currency) error {
 	q := `
 		UPDATE currency
 		SET version = version + 1
@@ -204,7 +203,6 @@ func (r PgCurrencyStore) Save(ctx context.Context, entity *core.Currency) error 
 			}
 		}
 
-		// TODO(rh): copies event. Use pointer slice inside aggregate or index for loop?
 		for _, event := range entity.DomainEvents {
 			if err := r.logDomainEvent(ctx, tx, entity.ID, entity.Version, event); err != nil {
 				return err
@@ -213,11 +211,13 @@ func (r PgCurrencyStore) Save(ctx context.Context, entity *core.Currency) error 
 				return err
 			}
 		}
+
+		entity.ClearDomainEvents()
 		return nil
 	})
 }
 
-func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregateID uuid.UUID, version int, event core.DomainEvent) error {
+func (r PgCurrencyStore) logDomainEvent(ctx context.Context, tx pgx.Tx, aggregateID uuid.UUID, version int32, event core.DomainEvent) error {
 	// Remove "core." prefix from event type name.
 	t := reflect.TypeOf(event)
 	if t.Kind() == reflect.Pointer {
@@ -283,4 +283,107 @@ func (r PgCurrencyStore) projectDomainEvent(ctx context.Context, tx pgx.Tx, even
 	default:
 		panic(fmt.Sprintf("unhandled type: %T", e))
 	}
+}
+
+// TierDiscount
+
+type tierDiscountFlat struct {
+	ID                   uuid.UUID
+	AuthorizedPercentage float64
+	AdvancedPercentage   float64
+	PremierPercentage    float64
+	From                 core.Date
+	Version              int32
+	CreatedAt            time.Time
+	UpdatedAt            *time.Time
+}
+
+func (td tierDiscountFlat) tierDiscount() *core.TierDiscount {
+	return &core.TierDiscount{
+		AggregateRoot: core.AggregateRoot{
+			Version: td.Version,
+			Entity: core.Entity{
+				ID:        td.ID,
+				CreatedAt: td.CreatedAt,
+				UpdatedAt: td.UpdatedAt,
+			},
+		},
+		Percentages: core.DiscountPercentages{
+			Authorized: td.AuthorizedPercentage,
+			Advanced:   td.AdvancedPercentage,
+			Premier:    td.PremierPercentage,
+		},
+		From: td.From,
+	}
+}
+
+type PgTierDiscountStore struct {
+	Pool *pgxpool.Pool
+}
+
+func (r PgTierDiscountStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, error) {
+	sql := "SELECT EXISTS (SELECT 1 FROM tier_discount WHERE id = $1)"
+	found := false
+	err := r.Pool.QueryRow(ctx, sql, id).Scan(&found)
+	if err != nil {
+		return found, fmt.Errorf("exists by id: %s: %w", id, err)
+	}
+	return found, nil
+}
+
+func (r PgTierDiscountStore) mapTierDiscount(flat []*tierDiscountFlat) map[uuid.UUID]*core.TierDiscount {
+	tierDiscounts := map[uuid.UUID]*core.TierDiscount{}
+	for _, td := range flat {
+		tierDiscounts[td.ID] = td.tierDiscount()
+	}
+	return tierDiscounts
+}
+
+func (r PgTierDiscountStore) GetByID(ctx context.Context, id uuid.UUID) (*core.TierDiscount, error) {
+	var sql = `
+		SELECT td.id, td.authorized_percentage, td.advanced_percentage, td.premier_percentage, td.version, td.created_at, td.updated_at
+		FROM tier_discount td
+		WHERE td.code = $1`
+	rows, _ := r.Pool.Query(ctx, sql, id)
+	tierDiscounts, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[tierDiscountFlat])
+	if err != nil {
+		return nil, fmt.Errorf("get by id: %s: %w", id, err)
+	}
+	if len(tierDiscounts) == 0 {
+		return nil, nil
+	}
+	td := r.mapTierDiscount(tierDiscounts)
+	core.Assert(len(td) == 1, "data inconsistency")
+	for _, v := range td {
+		return v, nil
+	}
+	panic("unreachable")
+}
+
+func (r PgTierDiscountStore) Save(ctx context.Context, entity *core.TierDiscount) error {
+	// if len(entity.DomainEvents) == 0 {
+	// 	return nil
+	// }
+	// return r.withTx(ctx, func(tx pgx.Tx) error {
+	// 	if entity.Version > 0 {
+	// 		err := r.enforceOptimisticLock(ctx, tx, entity)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	}
+
+	// 	// TODO(rh): copies event. Use pointer slice inside aggregate or index for loop?
+	// 	for _, event := range entity.DomainEvents {
+	// 		if err := r.logDomainEvent(ctx, tx, entity.ID, entity.Version, event); err != nil {
+	// 			return err
+	// 		}
+	// 		if err := r.projectDomainEvent(ctx, tx, event); err != nil {
+	// 			return err
+	// 		}
+	// 	}
+
+	// 	entity.ClearDomainEvents()
+	// 	return nil
+	// })
+	panic("TODO")
 }
