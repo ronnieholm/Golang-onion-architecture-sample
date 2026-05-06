@@ -138,10 +138,10 @@ type CreateTierDiscountCommand struct {
 	From                 Date
 }
 
-func (req CreateTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+func (r CreateTierDiscountCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", r.AuthorizedPercentage, r.AdvancedPercentage, r.PremierPercentage, err)
+	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
 }
 
 type CreateTierDiscountHandler struct {
@@ -176,10 +176,10 @@ type UpdateTierDiscountCommand struct {
 	From                 Date
 }
 
-func (req UpdateTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+func (r UpdateTierDiscountCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", r.AuthorizedPercentage, r.AdvancedPercentage, r.PremierPercentage, err)
+	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
 }
 
 type UpdateTierDiscountHandler struct {
@@ -212,8 +212,8 @@ type RemoveTierDiscountCommand struct {
 	ID uuid.UUID
 }
 
-func (req RemoveTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
+func (r RemoveTierDiscountCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
 }
 
 type RemoveTierDiscountHandler struct {
@@ -241,8 +241,8 @@ type GetTierDiscountQuery struct {
 	ID uuid.UUID
 }
 
-func (req GetTierDiscountQuery) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
+func (r GetTierDiscountQuery) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
 }
 
 type GetTierDiscountHandler struct {

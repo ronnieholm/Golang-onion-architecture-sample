@@ -225,9 +225,9 @@ type CreateCurrencyCommand struct {
 	Code string
 }
 
-func (req CreateCurrencyCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateStringCurrencyCode("Code", req.Code, err)
+func (r CreateCurrencyCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateStringCurrencyCode("Code", r.Code, err)
 }
 
 type CreateCurrencyHandler struct {
@@ -261,8 +261,8 @@ type RemoveCurrencyCommand struct {
 	Code string
 }
 
-func (req RemoveCurrencyCommand) Validate(err *ValidationError) {
-	ValidateStringCurrencyCode("Code", req.Code, err)
+func (r RemoveCurrencyCommand) Validate(err *ValidationError) {
+	ValidateStringCurrencyCode("Code", r.Code, err)
 }
 
 type RemoveCurrencyHandler struct {
@@ -293,12 +293,12 @@ type AddExchangeRateCommand struct {
 	From Date
 }
 
-func (req AddExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateStringCurrencyCode("Code", req.Code, err)
-	ValidateFloat64InclusiveRange("Rate", req.Rate, MinExchangeRate, MaxExchangeRate, err)
-	ValidateFloat64DecimalPlaces("Rate", req.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+func (r AddExchangeRateCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateStringCurrencyCode("Code", r.Code, err)
+	ValidateFloat64InclusiveRange("Rate", r.Rate, MinExchangeRate, MaxExchangeRate, err)
+	ValidateFloat64DecimalPlaces("Rate", r.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
+	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
 }
 
 type AddExchangeRateHandler struct {
@@ -341,12 +341,12 @@ type UpdateExchangeRateCommand struct {
 	From Date
 }
 
-func (req UpdateExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateStringCurrencyCode("Code", req.Code, err)
-	ValidateFloat64InclusiveRange("Rate", req.Rate, MinExchangeRate, MaxExchangeRate, err)
-	ValidateFloat64DecimalPlaces("Rate", req.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+func (r UpdateExchangeRateCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateStringCurrencyCode("Code", r.Code, err)
+	ValidateFloat64InclusiveRange("Rate", r.Rate, MinExchangeRate, MaxExchangeRate, err)
+	ValidateFloat64DecimalPlaces("Rate", r.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
+	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
 }
 
 type UpdateExchangeRateHandler struct {
@@ -395,9 +395,9 @@ type RemoveExchangeRateCommand struct {
 	Code string
 }
 
-func (req RemoveExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateStringCurrencyCode("Code", req.Code, err)
+func (r RemoveExchangeRateCommand) Validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", r.ID, err)
+	ValidateStringCurrencyCode("Code", r.Code, err)
 }
 
 type RemoveExchangeRateHandler struct {
@@ -435,8 +435,8 @@ type GetCurrencyQuery struct {
 	Code string
 }
 
-func (req GetCurrencyQuery) Validate(err *ValidationError) {
-	ValidateStringCurrencyCode("Code", req.Code, err)
+func (r GetCurrencyQuery) Validate(err *ValidationError) {
+	ValidateStringCurrencyCode("Code", r.Code, err)
 }
 
 type GetCurrencyHandler struct {
