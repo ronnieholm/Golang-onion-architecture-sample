@@ -47,19 +47,19 @@ func (e *ValidationError) Error() string {
 	return b.String()
 }
 
-func Validate[R any](request R, validate func(R, *ValidationError)) error {
+func Validate[R validator](req R) error {
 	err := &ValidationError{}
-	validate(request, err)
+	req.validate(err)
 
 	// Having this function return error instead of ValidationError is more
 	// idiomatic. Then nil may be returned on no error, which changes a call
 	// site from
 	//
-	// if err := Validate(req, h.validate); err.HasErrors() { ... }
+	// if err := Validate(req); err.HasErrors() { ... }
 	//
 	// to
 	//
-	// if err := Validate(req, h.validate); err != nil { ... }
+	// if err := Validate(req); err != nil { ... }
 	if !err.HasErrors() {
 		return nil
 	}

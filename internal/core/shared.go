@@ -220,6 +220,15 @@ type StoreProjector interface {
 	Apply(context.Context, ...Aggregate) error
 }
 
+// validator must be implemented by a request (command or query) for middleware
+// validation to work. The validate function is on a request, rather than the
+// associated handler, to signal that validation is pure. The validate function
+// must not look up information in a database for instance. Such validation
+// belongs in the handler.
+type validator interface {
+	validate(err *ValidationError)
+}
+
 // ISO 4217 country codes per https://en.wikipedia.org/wiki/ISO_4217.
 var CountryCodes = map[string]struct{}{
 	"AD": {}, "AE": {}, "AF": {}, "AG": {}, "AI": {}, "AL": {}, "AM": {},

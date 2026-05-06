@@ -138,20 +138,20 @@ type CreateTierDiscountCommand struct {
 	From                 Date
 }
 
+func (req CreateTierDiscountCommand) validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", req.ID, err)
+	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
+	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+}
+
 type CreateTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 	Projector     StoreProjector
 	Clock         Clock
 }
 
-func (h CreateTierDiscountHandler) validate(req CreateTierDiscountCommand, err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
-}
-
 func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDiscountCommand) error {
-	if err := Validate(req, h.validate); err != nil {
+	if err := Validate(req); err != nil {
 		return err
 	}
 
@@ -180,20 +180,20 @@ type UpdateTierDiscountCommand struct {
 	From                 Date
 }
 
+func (req UpdateTierDiscountCommand) validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", req.ID, err)
+	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
+	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+}
+
 type UpdateTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 	Projector     StoreProjector
 	Clock         Clock
 }
 
-func (h UpdateTierDiscountHandler) validate(req UpdateTierDiscountCommand, err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", req.AuthorizedPercentage, req.AdvancedPercentage, req.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", req.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
-}
-
 func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDiscountCommand) error {
-	if err := Validate(req, h.validate); err != nil {
+	if err := Validate(req); err != nil {
 		return err
 	}
 
@@ -220,18 +220,18 @@ type RemoveTierDiscountCommand struct {
 	ID uuid.UUID
 }
 
+func (req RemoveTierDiscountCommand) validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", req.ID, err)
+}
+
 type RemoveTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 	Projector     StoreProjector
 	Clock         Clock
 }
 
-func (h RemoveTierDiscountHandler) validate(req RemoveTierDiscountCommand, err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-}
-
 func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDiscountCommand) error {
-	if err := Validate(req, h.validate); err != nil {
+	if err := Validate(req); err != nil {
 		return err
 	}
 
@@ -253,16 +253,16 @@ type GetTierDiscountQuery struct {
 	ID uuid.UUID
 }
 
+func (req GetTierDiscountQuery) validate(err *ValidationError) {
+	ValidateUUIDNotZero("ID", req.ID, err)
+}
+
 type GetTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 }
 
-func (h GetTierDiscountHandler) validate(req GetTierDiscountQuery, err *ValidationError) {
-	ValidateUUIDNotZero("ID", req.ID, err)
-}
-
 func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQuery) (*TierDiscount, error) {
-	if err := Validate(req, h.validate); err != nil {
+	if err := Validate(req); err != nil {
 		return nil, err
 	}
 
