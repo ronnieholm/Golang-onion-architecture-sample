@@ -8,32 +8,32 @@ import (
 	"github.com/google/uuid"
 )
 
-type ValidationError struct { // TODO(rh): rename to ValidationCollection? Or ParseErrors?
-	FieldValues map[string][]string
+type RequestParseError struct {
+	FieldErrors map[string][]string
 }
 
-func (e *ValidationError) Add(key, message string) {
+func (e *RequestParseError) Add(key, error string) {
 	// Allocate the map here so allocation happens only on the error path.
-	if e.FieldValues == nil {
-		e.FieldValues = make(map[string][]string)
+	if e.FieldErrors == nil {
+		e.FieldErrors = make(map[string][]string)
 	}
-	e.FieldValues[key] = append(e.FieldValues[key], message)
+	e.FieldErrors[key] = append(e.FieldErrors[key], error)
 }
 
-func (e *ValidationError) HasErrors() bool {
-	return len(e.FieldValues) > 0
+func (e *RequestParseError) HasErrors() bool {
+	return len(e.FieldErrors) > 0
 }
 
-func (e *ValidationError) Error() string {
+func (e *RequestParseError) Error() string {
 	if !e.HasErrors() {
 		return ""
 	}
 
 	var b strings.Builder
-	b.WriteString("validation error: ")
+	b.WriteString("request parse errors: ")
 
 	i := 0
-	for f, v := range e.FieldValues {
+	for f, v := range e.FieldErrors {
 		for _, m := range v {
 			if i > 0 {
 				b.WriteString(", ")

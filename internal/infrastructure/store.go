@@ -295,7 +295,7 @@ func (sp PgStoreProjector) enforceOptimisticLock(ctx context.Context, tx pgx.Tx,
 // way to avoid such deadlock is to always pass the types in the same order
 // across calls to Apply.
 func (sp PgStoreProjector) Apply(ctx context.Context, aggregates ...core.Aggregate) error {
-	// TODO(rh): In the future have apply stort types in reverse depedency order.
+	// TODO(rh): In the future have apply stort types in reverse dependency order.
 	return sp.withTx(ctx, func(tx pgx.Tx) error {
 		for _, aggregate := range aggregates {
 			root := aggregate.GetAggregateRoot()

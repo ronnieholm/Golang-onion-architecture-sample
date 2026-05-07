@@ -240,17 +240,17 @@ func (e *FieldParseError) NilOrError() error {
 }
 
 // Parse, don't validate mantra
-func Parse[I any, O any](c *ValidationError, field string, val I, fn func(I) (O, error)) O {
+func Parse[In any, Out any](e *RequestParseError, field string, val In, fn func(In) (Out, error)) Out {
 	res, err := fn(val)
 	if err != nil {
 		if errs2, ok := err.(*FieldParseError); ok {
 			// When parsing a value object may lead to zero or many errors.
 			for _, msg := range errs2.Messages {
-				c.Add(field, msg)
+				e.Add(field, msg)
 			}
 		} else {
 			// When parsing a value object may lead to zero or one error.
-			c.Add(field, err.Error())
+			e.Add(field, err.Error())
 		}
 	}
 	return res

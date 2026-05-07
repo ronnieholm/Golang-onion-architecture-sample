@@ -222,10 +222,6 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	}
 
 	// TierDiscount
-	// CreateTierDiscount Handler[core.CreateTierDiscountCommand, Empty]
-	// UpdateTierDiscount Handler[core.UpdateTierDiscountCommand, Empty]
-	// RemoveTierDiscount Handler[core.RemoveTierDiscountCommand, Empty]
-	// GetTierDiscount    Handler[core.GetTierDiscountQuery, *core.TierDiscount]
 	createTierDiscount := core.CreateTierDiscountHandler{
 		TierDiscounts: tierDiscountStore,
 		Projector:     projector,

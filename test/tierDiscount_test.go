@@ -50,6 +50,8 @@ func (ct *CurrencyTests) TestCreateTierDiscountValid() {
 	})
 }
 
+// TODO(rh): Come up with tests.
+
 func TestTierDiscount(t *testing.T) {
 	suite.Run(t, new(TierDiscountTests))
 }
