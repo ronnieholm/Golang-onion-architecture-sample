@@ -27,3 +27,4 @@
         print("\nTest failed: Data committed for debugging.")
      else:
         transaction.rollback() # Clean up as usual
+- Switch to value object. During deserialization, call MustParse() which may panic.        

@@ -35,6 +35,7 @@ var sql = []string{
 	"DELETE FROM domain_event",
 	"DELETE FROM exchange_rate",
 	"DELETE FROM currency",
+	"DELETE FROM tier_discount",
 }
 
 func resetDB(ctx context.Context, pool *pgxpool.Pool) {
