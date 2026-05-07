@@ -308,7 +308,7 @@ type CurrencyCode struct {
 
 func (c CurrencyCode) V() string { return c.v }
 
-func NewCurrencyCode(v string) (CurrencyCode, error) {
+func ParseCurrencyCode(v string) (CurrencyCode, error) {
 	if err := ValidateStringCurrencyCode(v); err != nil {
 		return CurrencyCode{}, err
 	}
@@ -316,7 +316,7 @@ func NewCurrencyCode(v string) (CurrencyCode, error) {
 }
 
 func MustParseCurrencyCode(v string) CurrencyCode {
-	v1, err := NewCurrencyCode(v)
+	v1, err := ParseCurrencyCode(v)
 	if err != nil {
 		panic(err)
 	}
@@ -470,7 +470,7 @@ type From struct {
 func (f From) V() Date        { return f.v }
 func (f From) String() string { return f.v.String() }
 
-func NewFrom(v Date) (From, error) {
+func ParseFrom(v Date) (From, error) {
 	if err := ValidateDateInclusiveRange(v, ExchangeRateFromMin, ExchangeRateFromMax); err != nil {
 		return From{}, err
 	}
@@ -478,7 +478,7 @@ func NewFrom(v Date) (From, error) {
 }
 
 func MustParseFrom(v Date) From {
-	v1, err := NewFrom(v)
+	v1, err := ParseFrom(v)
 	if err != nil {
 		panic(err)
 	}

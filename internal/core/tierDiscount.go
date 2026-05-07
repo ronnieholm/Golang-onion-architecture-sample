@@ -228,7 +228,7 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
 	})
-	from := Parse(errs, "From", req.From, NewFrom)
+	from := Parse(errs, "From", req.From, ParseFrom)
 
 	if errs.HasErrors() {
 		return errs
@@ -264,7 +264,7 @@ func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDis
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
 	})
-	from := Parse(errs, "From", req.From, NewFrom)
+	from := Parse(errs, "From", req.From, ParseFrom)
 
 	if errs.HasErrors() {
 		return errs

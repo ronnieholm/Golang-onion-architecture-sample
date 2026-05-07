@@ -322,7 +322,7 @@ type CreateCurrencyHandler struct {
 func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCommand) error {
 	errs := &ValidationError{}
 	id := Parse(errs, "ID", req.ID, ParseCurrencyId)
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 
 	if errs.HasErrors() {
 		return errs
@@ -363,7 +363,7 @@ type RemoveCurrencyHandler struct {
 
 func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCommand) error {
 	errs := &ValidationError{}
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 
 	if errs.HasErrors() {
 		return errs
@@ -399,9 +399,9 @@ type AddExchangeRateHandler struct {
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
 	errs := &ValidationError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, NewFrom)
+	from := Parse(errs, "From", req.From, ParseFrom)
 
 	if errs.HasErrors() {
 		return errs
@@ -449,9 +449,9 @@ type UpdateExchangeRateHandler struct {
 func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchangeRateCommand) error {
 	errs := &ValidationError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, NewFrom)
+	from := Parse(errs, "From", req.From, ParseFrom)
 
 	if errs.HasErrors() {
 		return errs
@@ -505,7 +505,7 @@ type RemoveExchangeRateHandler struct {
 func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchangeRateCommand) error {
 	errs := &ValidationError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 
 	if errs.HasErrors() {
 		return errs
@@ -545,7 +545,7 @@ type GetCurrencyHandler struct {
 
 func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
 	errs := &ValidationError{}
-	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	_ = code
 
 	if errs.HasErrors() {
