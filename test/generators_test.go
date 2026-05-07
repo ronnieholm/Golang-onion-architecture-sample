@@ -184,28 +184,28 @@ func CreateCurrencyDuplicateCodeInvalidGen() *rapid.Generator[CreateCurrencyDupl
 func ExchangeRateRateGen() *rapid.Generator[float64] {
 	return rapid.Custom(func(t *rapid.T) float64 {
 		decimalPlaces := rapid.
-			IntRange(core.MinExchangeRateDecimalPlaces, core.MaxExchangeRateDecimalPlaces).
+			IntRange(core.ExchangeRateDecimalPlacesMin, core.ExchangeRateDecimalPlacesMax).
 			Draw(t, "decimal_places")
 		ratio := math.Pow10(decimalPlaces)
-		rate := rapid.Float64Range(core.MinExchangeRate, core.MaxExchangeRate).Draw(t, "rate")
+		rate := rapid.Float64Range(core.ExchangeRateMin, core.ExchangeRateMax).Draw(t, "rate")
 		return math.Round(rate*ratio) / ratio
 	})
 }
 
 func ExchangeRateFromGen() *rapid.Generator[core.Date] {
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return DateBetweenGen(core.MinExchangeRateFrom, core.MaxExchangeRateFrom).Draw(t, "from")
+		return DateBetweenGen(core.ExchangeRateFromMin, core.ExchangeRateFromMax).Draw(t, "from")
 	})
 }
 
 func ExchangeRateFromAfterGen(after core.Date) *rapid.Generator[core.Date] {
-	if after.After(core.MaxExchangeRateFrom) {
+	if after.After(core.ExchangeRateFromMax) {
 		panic("after must be after high from")
 	}
 	d := after.AddDate(0, 0, 1)
 
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return DateBetweenGen(d, core.MaxExchangeRateFrom).Draw(t, "from")
+		return DateBetweenGen(d, core.ExchangeRateFromMax).Draw(t, "from")
 	})
 }
 
@@ -277,8 +277,8 @@ func AddExchangeRateFromPolicyGen() *rapid.Generator[AddExchangeRateFromPolicyFi
 		base := AddExchangeRateUniqueFromValidGen().Draw(t, "base")
 		today := base.Clock.Today()
 
-		min := today.DaysBetween(core.MinExchangeRateFrom)
-		max := today.DaysBetween(core.MaxExchangeRateFrom)
+		min := today.DaysBetween(core.ExchangeRateFromMin)
+		max := today.DaysBetween(core.ExchangeRateFromMax)
 		offsets := make(map[int]bool, len(base.Expected))
 		for _, v := range base.Expected {
 			offset := v.From.DaysBetween(today)
@@ -449,8 +449,8 @@ func UpdateExchangeRateFromPolicyGen() *rapid.Generator[UpdateExchangeRateFromPo
 	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFromPolicyFixture {
 		base := AddExchangeRateUniqueFromValidGen().Draw(t, "base")
 		today := base.Clock.Today()
-		min := today.DaysBetween(core.MinExchangeRateFrom)
-		max := today.DaysBetween(core.MaxExchangeRateFrom)
+		min := today.DaysBetween(core.ExchangeRateFromMin)
+		max := today.DaysBetween(core.ExchangeRateFromMax)
 
 		offsets := make(map[int]bool, len(base.Expected))
 		for _, v := range base.Expected {
@@ -623,8 +623,8 @@ func RemoveExchangeRateFromPolicyGen() *rapid.Generator[RemoveExchangeRateFromPo
 		idx := rapid.IntRange(0, len(sorted)-1).Draw(t, "idx")
 		exchangeRate := sorted[idx]
 
-		min := core.MinExchangeRateFrom
-		max := core.MaxExchangeRateFrom
+		min := core.ExchangeRateFromMin
+		max := core.ExchangeRateFromMax
 		shouldPass := rapid.Bool().Draw(t, "should_pass")
 		if shouldPass {
 			max = base.Clock.Today()

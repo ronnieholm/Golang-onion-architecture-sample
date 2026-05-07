@@ -11,21 +11,6 @@ placing code in `core/currency.go` works out well.
 Files become larger as an affect, but support more of a vertical slice
 architecture.
 
-## Value types
-
-Instead of small value object, each with their own validation logic calling into
-`validation.go`, validation happens at the core boundary. If in the domain value
-objects were mutated a lot, the benefit would be repeated validation, but in
-practice mutation in the domain is less common. Validation at the boundary means
-less domain boilerplate, mapping in and out of domain types.
-
-No value types is only a rule on thumb. Should a type with complex validation be
-needed, one shouldn't refrain from creating specific domain types.
-
-Each such value object would have a field called `V` rather than `Value` to not
-pollute code with boilerplate too much. Each value object then needs a `New`
-function to adhere to the same interface as today's validation functions.
-
 ## Naming conventions
 
 - Events

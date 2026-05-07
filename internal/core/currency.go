@@ -60,8 +60,8 @@ const (
 const (
 	ExchangeRateMin              float64 = 1.
 	ExchangeRateMax              float64 = 100.
-	ExchangeRateMinDecimalPlaces         = 0
-	ExchangeRateMaxDecimalPlaces         = 6
+	ExchangeRateDecimalPlacesMin         = 0
+	ExchangeRateDecimalPlacesMax         = 6
 )
 
 // CurrencyID
@@ -128,7 +128,7 @@ func ParseRate(v float64) (Rate, error) { // TODO(rh): Idiomatic to call it Pars
 	if err := ValidateFloat64InclusiveRange(v, ExchangeRateMin, ExchangeRateMax); err != nil {
 		errs.Add(err.Error())
 	}
-	if err := ValidateFloat64DecimalPlaces(v, ExchangeRateMinDecimalPlaces, ExchangeRateMaxDecimalPlaces); err != nil {
+	if err := ValidateFloat64DecimalPlaces(v, ExchangeRateDecimalPlacesMin, ExchangeRateDecimalPlacesMax); err != nil {
 		errs.Add(err.Error())
 	}
 	if err := errs.NilOrError(); err != nil {
