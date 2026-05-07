@@ -163,7 +163,7 @@ func (ct *CurrencyTests) TestAddExchangeRateUniqueFromValid() {
 
 		for _, exchangeRate := range c.ExchangeRates {
 			expectedRate, exists := fx.Expected[exchangeRate.ID]
-			assert.True(t, exists, "Found unexpected from: %s", exchangeRate.From.V().String())
+			assert.True(t, exists, "Found unexpected from: %s", exchangeRate.From)
 			assert.Equal(t, expectedRate.From, exchangeRate.From.V())
 			assert.Equal(t, expectedRate.Rate, exchangeRate.Rate.V())
 		}
@@ -218,7 +218,7 @@ func (ct *CurrencyTests) TestUpdateExchangeRateValid() {
 
 		for _, er := range currency.ExchangeRates {
 			expected, exists := fx.Base.Expected[er.ID]
-			assert.True(t, exists, "Found unexpected from: %s", er.From.V().String())
+			assert.True(t, exists, "Found unexpected from: %s", er.From)
 			if er.ID == fx.UpdateExchangeRate.ID {
 				assert.Equal(t, fx.UpdateExchangeRate.From, er.From.V())
 				assert.Equal(t, fx.UpdateExchangeRate.Rate, er.Rate.V())

@@ -467,7 +467,8 @@ type From struct {
 	v Date
 }
 
-func (c From) V() Date { return c.v }
+func (f From) V() Date        { return f.v }
+func (f From) String() string { return f.v.String() }
 
 func NewFrom(v Date) (From, error) {
 	if err := ValidateDateInclusiveRange(v, ExchangeRateFromMin, ExchangeRateFromMax); err != nil {

@@ -70,7 +70,8 @@ type CurrencyID struct {
 	v uuid.UUID
 }
 
-func (c CurrencyID) V() uuid.UUID { return c.v }
+func (c CurrencyID) V() uuid.UUID   { return c.v }
+func (c CurrencyID) String() string { return c.v.String() }
 
 func ParseCurrencyId(v uuid.UUID) (CurrencyID, error) {
 	if err := ValidateUUIDNotZero(v); err != nil {
@@ -93,7 +94,8 @@ type ExchangeRateID struct {
 	v uuid.UUID
 }
 
-func (c ExchangeRateID) V() uuid.UUID { return c.v }
+func (e ExchangeRateID) V() uuid.UUID   { return e.v }
+func (e ExchangeRateID) String() string { return e.v.String() }
 
 func ParseExchangeRateId(v uuid.UUID) (ExchangeRateID, error) {
 	if err := ValidateUUIDNotZero(v); err != nil {
@@ -165,7 +167,7 @@ func (e *ExchangeRate) Update(rate Rate, from From, updatedAt time.Time) error {
 	if e.Rate == rate && e.From == from {
 		return NewDomainError(
 			CurrencyUpdateRequiresChange,
-			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from.V().String()))
+			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from))
 	}
 
 	e.Rate = rate
@@ -215,7 +217,7 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
 			CurrencyAddRequiresFutureFrom,
-			fmt.Sprintf("add exchange rate requires from %s be after today %s", exchangeRate.From.V().String(), today.String()))
+			fmt.Sprintf("add exchange rate requires from %s be after today %s", exchangeRate.From, today.String()))
 	}
 
 	c.ExchangeRates = append(c.ExchangeRates, &exchangeRate)
@@ -237,7 +239,7 @@ func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from
 	if !from.V().After(today) {
 		return NewDomainError(
 			CurrencyUpdateRequiresFutureFrom,
-			fmt.Sprintf("update exchange rate requires from %s be after today %s", from.V().String(), today.String()))
+			fmt.Sprintf("update exchange rate requires from %s be after today %s", from, today.String()))
 	}
 
 	if err := exchangeRate.Update(rate, from, updatedAt); err != nil {
@@ -261,7 +263,7 @@ func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time
 	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
 			CurrencyRemoveRequiresFutureFrom,
-			fmt.Sprintf("remove exchange rate requires from %s be after today %s", exchangeRate.From.V().String(), today.String()))
+			fmt.Sprintf("remove exchange rate requires from %s be after today %s", exchangeRate.From, today.String()))
 	}
 
 	idx := slices.IndexFunc(c.ExchangeRates, exchangeRate.Equal)
@@ -331,7 +333,7 @@ func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCom
 		return err
 	}
 	if found {
-		return NewConflictError("Currency", "ID", id.V().String())
+		return NewConflictError("Currency", "ID", id.String())
 	}
 
 	found, err = h.Currencies.ExistByCode(ctx, code)
@@ -415,10 +417,10 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 
 	for _, e := range currency.ExchangeRates {
 		if e.ID == req.ID {
-			return NewConflictError("ExchangeRate", "ID", id.V().String())
+			return NewConflictError("ExchangeRate", "ID", id.String())
 		}
 		if e.From.V().Equal(req.From) {
-			return NewConflictError("ExchangeRate", "From", from.V().String())
+			return NewConflictError("ExchangeRate", "From", from.String())
 		}
 	}
 
@@ -476,10 +478,10 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 		}
 	}
 	if exchangeRateByID == nil {
-		return NewNotFoundError("ExchangeRate", "ID", id.V().String())
+		return NewNotFoundError("ExchangeRate", "ID", id.String())
 	}
 	if exchangeRateByFrom != nil && exchangeRateByFrom.ID != req.ID {
-		return NewConflictError("ExchangeRate", "From", from.V().String())
+		return NewConflictError("ExchangeRate", "From", from.String())
 	}
 
 	// TODO(rh): why *exchangeRateByID and not exchangeRateByID to minimize copying? Is exchangeRate large enough to avoid copying? Over 64 bytes.
@@ -524,7 +526,7 @@ func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchang
 		}
 	}
 	if exchangeRate == nil {
-		return NewNotFoundError("ExchangeRate", "ID", id.V().String())
+		return NewNotFoundError("ExchangeRate", "ID", id.String())
 	}
 
 	if err := currency.RemoveExchangeRate(exchangeRate, h.Clock.NowUTC()); err != nil {

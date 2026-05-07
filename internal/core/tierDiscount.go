@@ -51,7 +51,8 @@ type TierDiscountID struct {
 	v uuid.UUID
 }
 
-func (c TierDiscountID) V() uuid.UUID { return c.v }
+func (t TierDiscountID) V() uuid.UUID   { return t.v }
+func (t TierDiscountID) String() string { return t.v.String() }
 
 func ParseTierDiscountID(v uuid.UUID) (TierDiscountID, error) {
 	if err := ValidateUUIDNotZero(v); err != nil {
@@ -159,7 +160,7 @@ func (td *TierDiscount) Update(percentages DiscountPercentages, from From, updat
 	if !from.V().After(today) {
 		return NewDomainError(
 			TierDiscountUpdateRequiresFutureFrom,
-			fmt.Sprintf("update tier discount requires from %s be after today %s", from.V().String(), today.String()))
+			fmt.Sprintf("update tier discount requires from %s be after today %s", from, today.String()))
 	}
 	if td.Percentages == percentages && td.From == from {
 		return NewDomainError(
@@ -238,7 +239,7 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 		return err
 	}
 	if found {
-		return NewConflictError("TierDiscount", "ID", id.V().String())
+		return NewConflictError("TierDiscount", "ID", id.String())
 	}
 
 	tierDiscount := NewTierDiscount(id, percentages, from, h.Clock.NowUTC())
@@ -274,7 +275,7 @@ func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDis
 		return err
 	}
 	if tierDiscount == nil {
-		return NewNotFoundError("TierDiscount", "ID", id.V().String())
+		return NewNotFoundError("TierDiscount", "ID", id.String())
 	}
 
 	if err := tierDiscount.Update(percentages, from, h.Clock.NowUTC()); err != nil {
@@ -305,7 +306,7 @@ func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDis
 		return err
 	}
 	if tierDiscount == nil {
-		return NewNotFoundError("TierDiscount", "ID", id.V().String())
+		return NewNotFoundError("TierDiscount", "ID", id.String())
 	}
 
 	if err := tierDiscount.Remove(h.Clock.NowUTC()); err != nil {
@@ -334,7 +335,7 @@ func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQ
 		return nil, err
 	}
 	if tierDiscount == nil {
-		return nil, NewNotFoundError("TierDiscount", "ID", id.V().String())
+		return nil, NewNotFoundError("TierDiscount", "ID", id.String())
 	}
 	return tierDiscount, nil
 }
