@@ -12,9 +12,9 @@ import (
 // Domain
 
 type CurrencyStore interface {
-	ExistByID(context.Context, uuid.UUID) (bool, error)
-	ExistByCode(context.Context, string) (bool, error)
-	GetByCode(context.Context, string) (*Currency, error)
+	ExistByID(context.Context, CurrencyID) (bool, error)
+	ExistByCode(context.Context, CurrencyCode) (bool, error)
+	GetByCode(context.Context, CurrencyCode) (*Currency, error)
 }
 
 type CurrencyCreatedEvent struct {
@@ -57,16 +57,102 @@ const (
 	CurrencyUpdateRequiresChange     = 1603
 )
 
-type ExchangeRate struct {
-	Entity
-	Rate float64
-	From Date
+const (
+	ExchangeRateMin              float64 = 1.
+	ExchangeRateMax              float64 = 100.
+	ExchangeRateMinDecimalPlaces         = 0
+	ExchangeRateMaxDecimalPlaces         = 6
+)
+
+// CurrencyID
+
+type CurrencyID struct {
+	v uuid.UUID
 }
 
-func NewExchangeRate(id uuid.UUID, rate float64, from Date, createdAt time.Time) ExchangeRate {
+func (c CurrencyID) V() uuid.UUID { return c.v }
+
+func ParseCurrencyId(v uuid.UUID) (CurrencyID, error) {
+	if err := ValidateUUIDNotZero(v); err != nil {
+		return CurrencyID{}, err
+	}
+	return CurrencyID{v}, nil
+}
+
+func MustParseCurrencyId(v uuid.UUID) CurrencyID {
+	v1, err := ParseCurrencyId(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
+// ExchangeRateID
+
+type ExchangeRateID struct {
+	v uuid.UUID
+}
+
+func (c ExchangeRateID) V() uuid.UUID { return c.v }
+
+func ParseExchangeRateId(v uuid.UUID) (ExchangeRateID, error) {
+	if err := ValidateUUIDNotZero(v); err != nil {
+		return ExchangeRateID{}, err
+	}
+	return ExchangeRateID{v}, nil
+}
+
+func MustParseExchangeRateId(v uuid.UUID) ExchangeRateID {
+	v1, err := ParseExchangeRateId(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
+var (
+	ExchangeRateFromMin = NewDate(2024, 1, 1)
+	ExchangeRateFromMax = NewDate(2034, 12, 31)
+)
+
+type Rate struct { // TODO(rh): call ExchangeRateRate?
+	v float64
+}
+
+func (r Rate) V() float64 { return r.v }
+
+func ParseRate(v float64) (Rate, error) { // TODO(rh): Idiomatic to call it ParseRate?
+	errs := &FieldParseError{}
+	if err := ValidateFloat64InclusiveRange(v, ExchangeRateMin, ExchangeRateMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := ValidateFloat64DecimalPlaces(v, ExchangeRateMinDecimalPlaces, ExchangeRateMaxDecimalPlaces); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := errs.NilOrError(); err != nil {
+		return Rate{}, err
+	}
+	return Rate{v}, nil
+}
+
+func MustParseRate(v float64) Rate {
+	v1, err := ParseRate(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
+type ExchangeRate struct {
+	Entity
+	Rate Rate
+	From From
+}
+
+func NewExchangeRate(id ExchangeRateID, rate Rate, from From, createdAt time.Time) ExchangeRate {
 	return ExchangeRate{
 		Entity: Entity{
-			ID:        id,
+			ID:        id.V(), // TODO(rh): fix
 			CreatedAt: createdAt,
 			UpdatedAt: nil,
 		},
@@ -75,11 +161,11 @@ func NewExchangeRate(id uuid.UUID, rate float64, from Date, createdAt time.Time)
 	}
 }
 
-func (e *ExchangeRate) Update(rate float64, from Date, updatedAt time.Time) error {
-	if e.Rate == rate && e.From.Equal(from) {
+func (e *ExchangeRate) Update(rate Rate, from From, updatedAt time.Time) error {
+	if e.Rate == rate && e.From == from {
 		return NewDomainError(
 			CurrencyUpdateRequiresChange,
-			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from.String()))
+			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from.V().String()))
 	}
 
 	e.Rate = rate
@@ -94,15 +180,15 @@ func (e *ExchangeRate) Equal(other *ExchangeRate) bool {
 
 type Currency struct {
 	AggregateRoot
-	Code          string
+	Code          CurrencyCode
 	ExchangeRates []*ExchangeRate
 }
 
-func NewCurrency(id uuid.UUID, code string, createdAt time.Time) Currency {
+func NewCurrency(id CurrencyID, code CurrencyCode, createdAt time.Time) Currency {
 	c := Currency{
 		AggregateRoot: AggregateRoot{
 			Entity: Entity{
-				ID:        id,
+				ID:        id.V(), // TOOD(rh): Fix by making entity generic.
 				CreatedAt: createdAt,
 			},
 		},
@@ -114,8 +200,8 @@ func NewCurrency(id uuid.UUID, code string, createdAt time.Time) Currency {
 		domainEventCommon: domainEventCommon{
 			OccurredAt: createdAt,
 		},
-		ID:   id,
-		Code: code,
+		ID:   id.V(),
+		Code: code.V(),
 	})
 	return c
 }
@@ -126,10 +212,10 @@ func (e *Currency) Equal(other *Currency) bool {
 
 func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Time) error {
 	today := DateFromTime(createdAt)
-	if !exchangeRate.From.After(today) {
+	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
 			CurrencyAddRequiresFutureFrom,
-			fmt.Sprintf("add exchange rate requires from %s be after today %s", exchangeRate.From.String(), today.String()))
+			fmt.Sprintf("add exchange rate requires from %s be after today %s", exchangeRate.From.V().String(), today.String()))
 	}
 
 	c.ExchangeRates = append(c.ExchangeRates, &exchangeRate)
@@ -139,19 +225,19 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 		},
 		CurrencyID:     c.ID,
 		ExchangeRateID: exchangeRate.ID,
-		Rate:           exchangeRate.Rate,
-		From:           exchangeRate.From,
+		Rate:           exchangeRate.Rate.V(),
+		From:           exchangeRate.From.V(),
 	})
 	return nil
 }
 
-func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate float64, from Date, updatedAt time.Time) error {
+func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from From, updatedAt time.Time) error {
 	// TODO(rh): move check to ExchangeRate entity? Similar for other methods.
 	today := DateFromTime(updatedAt)
-	if !from.After(today) {
+	if !from.V().After(today) {
 		return NewDomainError(
 			CurrencyUpdateRequiresFutureFrom,
-			fmt.Sprintf("update exchange rate requires from %s be after today %s", from.String(), today.String()))
+			fmt.Sprintf("update exchange rate requires from %s be after today %s", from.V().String(), today.String()))
 	}
 
 	if err := exchangeRate.Update(rate, from, updatedAt); err != nil {
@@ -164,18 +250,18 @@ func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate float64, f
 		},
 		CurrencyID:     c.ID,
 		ExchangeRateID: exchangeRate.ID,
-		Rate:           exchangeRate.Rate,
-		From:           exchangeRate.From,
+		Rate:           exchangeRate.Rate.V(),
+		From:           exchangeRate.From.V(),
 	})
 	return nil
 }
 
 func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time.Time) error {
 	today := DateFromTime(updatedAt)
-	if !exchangeRate.From.After(today) {
+	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
 			CurrencyRemoveRequiresFutureFrom,
-			fmt.Sprintf("remove exchange rate requires from %s be after today %s", exchangeRate.From.String(), today.String()))
+			fmt.Sprintf("remove exchange rate requires from %s be after today %s", exchangeRate.From.V().String(), today.String()))
 	}
 
 	idx := slices.IndexFunc(c.ExchangeRates, exchangeRate.Equal)
@@ -195,7 +281,7 @@ func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time
 func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 	today := DateFromTime(removeAt)
 	canRemove := !slices.ContainsFunc(c.ExchangeRates, func(e *ExchangeRate) bool {
-		return e.From.Compare(today) <= 0 // TODO(rh): use !e.From.Ater(today) which is simpler to read.
+		return e.From.V().Compare(today) <= 0 // TODO(rh): use !e.From.Ater(today) which is simpler to read.
 	})
 	if !canRemove {
 		return NewDomainError(
@@ -225,11 +311,6 @@ type CreateCurrencyCommand struct {
 	Code string
 }
 
-func (r CreateCurrencyCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateStringCurrencyCode("Code", r.Code, err)
-}
-
 type CreateCurrencyHandler struct {
 	Currencies CurrencyStore
 	Projector  StoreProjector
@@ -237,23 +318,31 @@ type CreateCurrencyHandler struct {
 }
 
 func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCommand) error {
-	found, err := h.Currencies.ExistByID(ctx, req.ID)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseCurrencyId)
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	found, err := h.Currencies.ExistByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if found {
-		return NewConflictError("Currency", "ID", req.ID.String())
+		return NewConflictError("Currency", "ID", id.V().String())
 	}
 
-	found, err = h.Currencies.ExistByCode(ctx, req.Code)
+	found, err = h.Currencies.ExistByCode(ctx, code)
 	if err != nil {
 		return err // TODO(rh): add context (and other places)
 	}
 	if found {
-		return NewConflictError("Currency", "Code", req.Code)
+		return NewConflictError("Currency", "Code", code.V())
 	}
 
-	currency := NewCurrency(req.ID, req.Code, h.Clock.NowUTC())
+	currency := NewCurrency(id, code, h.Clock.NowUTC())
 	return h.Projector.Apply(ctx, &currency)
 }
 
@@ -262,7 +351,6 @@ type RemoveCurrencyCommand struct {
 }
 
 func (r RemoveCurrencyCommand) Validate(err *ValidationError) {
-	ValidateStringCurrencyCode("Code", r.Code, err)
 }
 
 type RemoveCurrencyHandler struct {
@@ -272,12 +360,19 @@ type RemoveCurrencyHandler struct {
 }
 
 func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCommand) error {
-	currency, err := h.Currencies.GetByCode(ctx, req.Code)
+	errs := &ValidationError{}
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	currency, err := h.Currencies.GetByCode(ctx, code)
 	if err != nil {
 		return err
 	}
 	if currency == nil {
-		return NewNotFoundError("Currency", "Code", req.Code)
+		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
 	if err := currency.RemoveCurrency(h.Clock.NowUTC()); err != nil {
@@ -293,14 +388,6 @@ type AddExchangeRateCommand struct {
 	From Date
 }
 
-func (r AddExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateStringCurrencyCode("Code", r.Code, err)
-	ValidateFloat64InclusiveRange("Rate", r.Rate, MinExchangeRate, MaxExchangeRate, err)
-	ValidateFloat64DecimalPlaces("Rate", r.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
-	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
-}
-
 type AddExchangeRateHandler struct {
 	Currencies CurrencyStore
 	Projector  StoreProjector
@@ -308,25 +395,35 @@ type AddExchangeRateHandler struct {
 }
 
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
-	currency, err := h.Currencies.GetByCode(ctx, req.Code)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	rate := Parse(errs, "Rate", req.Rate, ParseRate)
+	from := Parse(errs, "From", req.From, NewFrom)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	currency, err := h.Currencies.GetByCode(ctx, code)
 	if err != nil {
 		return err
 	}
 	if currency == nil {
-		return NewNotFoundError("Currency", "Code", req.Code)
+		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
 	for _, e := range currency.ExchangeRates {
 		if e.ID == req.ID {
-			return NewConflictError("ExchangeRate", "ID", req.ID.String())
+			return NewConflictError("ExchangeRate", "ID", id.V().String())
 		}
-		if e.From.Equal(req.From) {
-			return NewConflictError("ExchangeRate", "From", req.From.String())
+		if e.From.V().Equal(req.From) {
+			return NewConflictError("ExchangeRate", "From", from.V().String())
 		}
 	}
 
 	now := time.Now()
-	exchangeRate := NewExchangeRate(req.ID, req.Rate, req.From, now)
+	exchangeRate := NewExchangeRate(id, rate, from, now)
 	err = currency.AddExchangeRate(exchangeRate, h.Clock.NowUTC())
 	if err != nil {
 		return err
@@ -341,14 +438,6 @@ type UpdateExchangeRateCommand struct {
 	From Date
 }
 
-func (r UpdateExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateStringCurrencyCode("Code", r.Code, err)
-	ValidateFloat64InclusiveRange("Rate", r.Rate, MinExchangeRate, MaxExchangeRate, err)
-	ValidateFloat64DecimalPlaces("Rate", r.Rate, MinExchangeRateDecimalPlaces, MaxExchangeRateDecimalPlaces, err)
-	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
-}
-
 type UpdateExchangeRateHandler struct {
 	Currencies CurrencyStore
 	Projector  StoreProjector
@@ -356,12 +445,22 @@ type UpdateExchangeRateHandler struct {
 }
 
 func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchangeRateCommand) error {
-	currency, err := h.Currencies.GetByCode(ctx, req.Code)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	rate := Parse(errs, "Rate", req.Rate, ParseRate)
+	from := Parse(errs, "From", req.From, NewFrom)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	currency, err := h.Currencies.GetByCode(ctx, code)
 	if err != nil {
 		return err
 	}
 	if currency == nil {
-		return NewNotFoundError("Currency", "Code", req.Code)
+		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
 	var (
@@ -372,19 +471,19 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 		if e.ID == req.ID {
 			exchangeRateByID = e
 		}
-		if e.From.Equal(req.From) {
+		if e.From.V().Equal(req.From) {
 			exchangeRateByFrom = e
 		}
 	}
 	if exchangeRateByID == nil {
-		return NewNotFoundError("ExchangeRate", "ID", req.ID.String())
+		return NewNotFoundError("ExchangeRate", "ID", id.V().String())
 	}
 	if exchangeRateByFrom != nil && exchangeRateByFrom.ID != req.ID {
-		return NewConflictError("ExchangeRate", "From", req.From.String())
+		return NewConflictError("ExchangeRate", "From", from.V().String())
 	}
 
 	// TODO(rh): why *exchangeRateByID and not exchangeRateByID to minimize copying? Is exchangeRate large enough to avoid copying? Over 64 bytes.
-	if err := currency.UpdateExchangeRate(*exchangeRateByID, req.Rate, req.From, h.Clock.NowUTC()); err != nil {
+	if err := currency.UpdateExchangeRate(*exchangeRateByID, rate, from, h.Clock.NowUTC()); err != nil {
 		return err
 	}
 	return h.Projector.Apply(ctx, currency)
@@ -395,11 +494,6 @@ type RemoveExchangeRateCommand struct {
 	Code string
 }
 
-func (r RemoveExchangeRateCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateStringCurrencyCode("Code", r.Code, err)
-}
-
 type RemoveExchangeRateHandler struct {
 	Currencies CurrencyStore
 	Projector  StoreProjector
@@ -407,12 +501,20 @@ type RemoveExchangeRateHandler struct {
 }
 
 func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchangeRateCommand) error {
-	currency, err := h.Currencies.GetByCode(ctx, req.Code)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	currency, err := h.Currencies.GetByCode(ctx, code)
 	if err != nil {
 		return err
 	}
 	if currency == nil {
-		return NewNotFoundError("Currency", "Code", req.Code)
+		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
 	var exchangeRate *ExchangeRate
@@ -422,7 +524,7 @@ func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchang
 		}
 	}
 	if exchangeRate == nil {
-		return NewNotFoundError("ExchangeRate", "ID", req.ID.String())
+		return NewNotFoundError("ExchangeRate", "ID", id.V().String())
 	}
 
 	if err := currency.RemoveExchangeRate(exchangeRate, h.Clock.NowUTC()); err != nil {
@@ -435,21 +537,25 @@ type GetCurrencyQuery struct {
 	Code string
 }
 
-func (r GetCurrencyQuery) Validate(err *ValidationError) {
-	ValidateStringCurrencyCode("Code", r.Code, err)
-}
-
 type GetCurrencyHandler struct {
 	Currencies CurrencyStore
 }
 
 func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
-	currency, err := h.Currencies.GetByCode(ctx, req.Code)
+	errs := &ValidationError{}
+	code := Parse(errs, "Code", req.Code, NewCurrencyCode)
+	_ = code
+
+	if errs.HasErrors() {
+		return nil, errs
+	}
+
+	currency, err := h.Currencies.GetByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 	if currency == nil {
-		return nil, NewNotFoundError("Currency", "Code", req.Code)
+		return nil, NewNotFoundError("Currency", "Code", code.V())
 	}
 	return currency, nil
 }

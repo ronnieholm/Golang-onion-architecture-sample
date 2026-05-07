@@ -25,13 +25,13 @@ import (
 // decorator handlers. It's assumed that every handler returns a response and
 // error. Handlers without an actual response, such as non-get handlers, return
 // a special Empty type.
-type Handler[Req core.Validator, Res any] func(context.Context, Req) (Res, error)
+type Handler[Req any, Res any] func(context.Context, Req) (Res, error)
 
 // Empty signals callers that the handler didn't return a useful value on the
 // success path.
 type Empty struct{}
 
-func WithTiming[Req core.Validator, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
+func WithTiming[Req any, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
 	return func(ctx context.Context, r Req) (Res, error) {
 		start := time.Now()
 
@@ -45,7 +45,7 @@ func WithTiming[Req core.Validator, Res any](name string, next Handler[Req, Res]
 	}
 }
 
-func WithLogging[Req core.Validator, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
+func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
 	return func(ctx context.Context, r Req) (res Res, err error) {
 		defer func() {
 			// For a PII sensitive service, rather than logging every field,
@@ -83,22 +83,11 @@ func WithLogging[Req core.Validator, Res any](name string, next Handler[Req, Res
 	}
 }
 
-func WithValidation[Req core.Validator, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
-	return func(ctx context.Context, r Req) (Res, error) {
-		if err := core.Validate(r); err != nil {
-			var zero Res
-			return zero, err
-		}
-		return next(ctx, r)
-	}
-}
-
 // Decorate avoids repeating the common chain of decorators for every handler.
-func Decorate[Req core.Validator, Res any](name string, h func(context.Context, Req) (Res, error)) Handler[Req, Res] {
+func Decorate[Req any, Res any](name string, h func(context.Context, Req) (Res, error)) Handler[Req, Res] {
 	handler := Handler[Req, Res](h)
 
 	// Apply decorators in order, innermost to outermost.
-	handler = WithValidation(name, handler)
 	handler = WithLogging(name, handler)
 	handler = WithTiming(name, handler)
 	return handler

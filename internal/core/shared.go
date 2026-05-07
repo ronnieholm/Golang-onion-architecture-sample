@@ -220,13 +220,40 @@ type StoreProjector interface {
 	Apply(context.Context, ...Aggregate) error
 }
 
-// Validator must be implemented by a request (command or query) for middleware
-// validation to work. The Validate function is on a request, rather than the
-// associated handler, to signal that validation is about syntax, not semantics.
-// The Validate function must not look up information in a database for
-// instance. Such validation belongs in the handler.
-type Validator interface {
-	Validate(err *ValidationError)
+type FieldParseError struct {
+	Messages []string
+}
+
+func (e *FieldParseError) Error() string {
+	return strings.Join(e.Messages, "; ")
+}
+
+func (e *FieldParseError) Add(message string) {
+	e.Messages = append(e.Messages, message)
+}
+
+func (e *FieldParseError) NilOrError() error {
+	if len(e.Messages) == 0 {
+		return nil
+	}
+	return e
+}
+
+// Parse, don't validate mantra
+func Parse[I any, O any](c *ValidationError, field string, val I, fn func(I) (O, error)) O {
+	res, err := fn(val)
+	if err != nil {
+		if errs2, ok := err.(*FieldParseError); ok {
+			// When parsing a value object may lead to zero or many errors.
+			for _, msg := range errs2.Messages {
+				c.Add(field, msg)
+			}
+		} else {
+			// When parsing a value object may lead to zero or one error.
+			c.Add(field, err.Error())
+		}
+	}
+	return res
 }
 
 // ISO 4217 country codes per https://en.wikipedia.org/wiki/ISO_4217.
@@ -273,6 +300,27 @@ var CountryCodes = map[string]struct{}{
 // ISO 4217 country codes per https://en.wikipedia.org/wiki/ISO_4217.
 var CurrencyCodes = map[string]struct{}{
 	"USD": {}, "EUR": {}, "DKK": {},
+}
+
+type CurrencyCode struct {
+	v string
+}
+
+func (c CurrencyCode) V() string { return c.v }
+
+func NewCurrencyCode(v string) (CurrencyCode, error) {
+	if err := ValidateStringCurrencyCode(v); err != nil {
+		return CurrencyCode{}, err
+	}
+	return CurrencyCode{v}, nil
+}
+
+func MustParseCurrencyCode(v string) CurrencyCode {
+	v1, err := NewCurrencyCode(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
 }
 
 // For this system we don't need the accuracy afforded by a decimal type.
@@ -413,4 +461,25 @@ func (d Date) DaysBetween(dt Date) int {
 func (d Date) AddDate(year, month, days int) Date {
 	dt := d.Time.AddDate(year, month, days)
 	return DateFromTime(dt)
+}
+
+type From struct {
+	v Date
+}
+
+func (c From) V() Date { return c.v }
+
+func NewFrom(v Date) (From, error) {
+	if err := ValidateDateInclusiveRange(v, ExchangeRateFromMin, ExchangeRateFromMax); err != nil {
+		return From{}, err
+	}
+	return From{v}, nil
+}
+
+func MustParseFrom(v Date) From {
+	v1, err := NewFrom(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
 }

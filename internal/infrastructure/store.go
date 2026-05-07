@@ -44,7 +44,7 @@ func (c currencyFlat) currency() *core.Currency {
 				UpdatedAt: c.CUpdatedAt,
 			},
 		},
-		Code: c.CCode,
+		Code: core.MustParseCurrencyCode(c.CCode),
 	}
 }
 
@@ -56,8 +56,8 @@ func (c currencyFlat) exchangeRate() *core.ExchangeRate {
 				CreatedAt: *c.ECreatedAt,
 				UpdatedAt: c.EUpdatedAt,
 			},
-			Rate: *c.ERate,
-			From: *c.EFrom,
+			Rate: core.MustParseRate(*c.ERate),
+			From: core.MustParseFrom(*c.EFrom),
 		}
 	} else {
 		return nil
@@ -68,22 +68,22 @@ type PgCurrencyStore struct {
 	Pool *pgxpool.Pool
 }
 
-func (cs PgCurrencyStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, error) {
+func (cs PgCurrencyStore) ExistByID(ctx context.Context, id core.CurrencyID) (bool, error) {
 	sql := "SELECT EXISTS (SELECT 1 FROM currency WHERE id = $1)"
 	found := false
-	err := cs.Pool.QueryRow(ctx, sql, id).Scan(&found)
+	err := cs.Pool.QueryRow(ctx, sql, id.V()).Scan(&found)
 	if err != nil {
-		return found, fmt.Errorf("exists by id: %s: %w", id, err)
+		return found, fmt.Errorf("exists by id: %s: %w", id.V(), err)
 	}
 	return found, nil
 }
 
-func (cs PgCurrencyStore) ExistByCode(ctx context.Context, code string) (bool, error) {
+func (cs PgCurrencyStore) ExistByCode(ctx context.Context, code core.CurrencyCode) (bool, error) {
 	sql := "SELECT EXISTS (SELECT 1 FROM currency WHERE code = $1)"
 	found := false
-	err := cs.Pool.QueryRow(ctx, sql, code).Scan(&found)
+	err := cs.Pool.QueryRow(ctx, sql, code.V()).Scan(&found)
 	if err != nil {
-		return found, fmt.Errorf("exists by code: %s: %w", code, err)
+		return found, fmt.Errorf("exists by code: %s: %w", code.V(), err)
 	}
 	return found, nil
 }
@@ -108,17 +108,17 @@ func (cs PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*cor
 	return currencies
 }
 
-func (cs PgCurrencyStore) GetByCode(ctx context.Context, code string) (*core.Currency, error) {
+func (cs PgCurrencyStore) GetByCode(ctx context.Context, code core.CurrencyCode) (*core.Currency, error) {
 	var sql = `
 		SELECT c.id, c.code, c.version, c.created_at, c.updated_at,
   			   e.id, e.rate, e.from, e.created_at, e.updated_at
 		FROM currency c
 		LEFT JOIN exchange_rate e ON c.id = e.currency_id
 		WHERE c.code = $1`
-	rows, _ := cs.Pool.Query(ctx, sql, code)
+	rows, _ := cs.Pool.Query(ctx, sql, code.V())
 	currencies, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[currencyFlat])
 	if err != nil {
-		return nil, fmt.Errorf("get by code: %s: %w", code, err)
+		return nil, fmt.Errorf("get by code: %s: %w", code.V(), err)
 	}
 	if len(currencies) == 0 {
 		return nil, nil
@@ -154,12 +154,11 @@ func (td tierDiscountFlat) tierDiscount() *core.TierDiscount {
 				UpdatedAt: td.UpdatedAt,
 			},
 		},
-		Percentages: core.DiscountPercentages{
-			Authorized: td.AuthorizedPercentage,
-			Advanced:   td.AdvancedPercentage,
-			Premier:    td.PremierPercentage,
-		},
-		From: td.From,
+		Percentages: core.MustParseDiscountPercentages(
+			td.AuthorizedPercentage,
+			td.AdvancedPercentage,
+			td.PremierPercentage),
+		From: core.MustParseFrom(td.From),
 	}
 }
 
@@ -167,12 +166,12 @@ type PgTierDiscountStore struct {
 	Pool *pgxpool.Pool
 }
 
-func (r PgTierDiscountStore) ExistByID(ctx context.Context, id uuid.UUID) (bool, error) {
+func (r PgTierDiscountStore) ExistByID(ctx context.Context, id core.TierDiscountID) (bool, error) {
 	sql := "SELECT EXISTS (SELECT 1 FROM tier_discount WHERE id = $1)"
 	found := false
-	err := r.Pool.QueryRow(ctx, sql, id).Scan(&found)
+	err := r.Pool.QueryRow(ctx, sql, id.V()).Scan(&found)
 	if err != nil {
-		return found, fmt.Errorf("exists by id: %s: %w", id, err)
+		return found, fmt.Errorf("exists by id: %s: %w", id.V(), err)
 	}
 	return found, nil
 }
@@ -185,15 +184,15 @@ func (r PgTierDiscountStore) mapTierDiscount(flat []*tierDiscountFlat) map[uuid.
 	return tierDiscounts
 }
 
-func (r PgTierDiscountStore) GetByID(ctx context.Context, id uuid.UUID) (*core.TierDiscount, error) {
+func (r PgTierDiscountStore) GetByID(ctx context.Context, id core.TierDiscountID) (*core.TierDiscount, error) {
 	var sql = `
 		SELECT td.id, td.authorized_percentage, td.advanced_percentage, td.premier_percentage, td.version, td.created_at, td.updated_at
 		FROM tier_discount td
 		WHERE td.code = $1`
-	rows, _ := r.Pool.Query(ctx, sql, id)
+	rows, _ := r.Pool.Query(ctx, sql, id.V())
 	tierDiscounts, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[tierDiscountFlat])
 	if err != nil {
-		return nil, fmt.Errorf("get by id: %s: %w", id, err)
+		return nil, fmt.Errorf("get by id: %s: %w", id.V(), err)
 	}
 	if len(tierDiscounts) == 0 {
 		return nil, nil

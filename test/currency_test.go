@@ -99,7 +99,7 @@ func (ct *CurrencyTests) TestCreateCurrencyValid() {
 		c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.GetCurrecyByCode)
 		require.NoError(t, err)
 		assert.Equal(t, fx.CreateCurrency.ID, c.ID)
-		assert.Equal(t, fx.CreateCurrency.Code, c.Code)
+		assert.Equal(t, fx.CreateCurrency.Code, c.Code.V())
 		// Assume system fields such as CreatedAt, UpdatedAt, Version are
 		// correct and focus on the domain.
 	})
@@ -163,9 +163,9 @@ func (ct *CurrencyTests) TestAddExchangeRateUniqueFromValid() {
 
 		for _, exchangeRate := range c.ExchangeRates {
 			expectedRate, exists := fx.Expected[exchangeRate.ID]
-			assert.True(t, exists, "Found unexpected from: %s", exchangeRate.From.String())
-			assert.Equal(t, expectedRate.From, exchangeRate.From)
-			assert.Equal(t, expectedRate.Rate, exchangeRate.Rate)
+			assert.True(t, exists, "Found unexpected from: %s", exchangeRate.From.V().String())
+			assert.Equal(t, expectedRate.From, exchangeRate.From.V())
+			assert.Equal(t, expectedRate.Rate, exchangeRate.Rate.V())
 		}
 	})
 }
@@ -218,13 +218,13 @@ func (ct *CurrencyTests) TestUpdateExchangeRateValid() {
 
 		for _, er := range currency.ExchangeRates {
 			expected, exists := fx.Base.Expected[er.ID]
-			assert.True(t, exists, "Found unexpected from: %s", er.From.String())
+			assert.True(t, exists, "Found unexpected from: %s", er.From.V().String())
 			if er.ID == fx.UpdateExchangeRate.ID {
-				assert.Equal(t, fx.UpdateExchangeRate.From, er.From)
-				assert.Equal(t, fx.UpdateExchangeRate.Rate, er.Rate)
+				assert.Equal(t, fx.UpdateExchangeRate.From, er.From.V())
+				assert.Equal(t, fx.UpdateExchangeRate.Rate, er.Rate.V())
 			} else {
-				assert.Equal(t, expected.From, er.From)
-				assert.Equal(t, expected.Rate, er.Rate)
+				assert.Equal(t, expected.From, er.From.V())
+				assert.Equal(t, expected.Rate, er.Rate.V())
 			}
 		}
 	})

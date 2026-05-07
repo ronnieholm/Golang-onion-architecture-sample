@@ -11,8 +11,8 @@ import (
 // Domain
 
 type TierDiscountStore interface {
-	ExistByID(context.Context, uuid.UUID) (bool, error)
-	GetByID(context.Context, uuid.UUID) (*TierDiscount, error)
+	ExistByID(context.Context, TierDiscountID) (bool, error)
+	GetByID(context.Context, TierDiscountID) (*TierDiscount, error)
 }
 
 type TierDiscountCreatedEvent struct {
@@ -45,23 +45,96 @@ const (
 	TierDiscountUpdateRequiresChange       = 1603
 )
 
+// TierDiscountID
+
+type TierDiscountID struct {
+	v uuid.UUID
+}
+
+func (c TierDiscountID) V() uuid.UUID { return c.v }
+
+func ParseTierDiscountID(v uuid.UUID) (TierDiscountID, error) {
+	if err := ValidateUUIDNotZero(v); err != nil {
+		return TierDiscountID{}, err
+	}
+	return TierDiscountID{v}, nil
+}
+
+func MustParseTierDiscountId(v uuid.UUID) TierDiscountID {
+	v1, err := ParseTierDiscountID(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
+// DiscountPercentages
+
+const (
+	DiscountPercentageMin float64 = 0.
+	DiscountPercentageMax float64 = 100.
+)
+
 type DiscountPercentages struct {
-	Authorized float64
-	Advanced   float64
-	Premier    float64
+	authorized float64
+	advanced   float64
+	premier    float64
+}
+
+func (c DiscountPercentages) Authorized() float64 { return c.authorized }
+func (c DiscountPercentages) Advanced() float64   { return c.advanced }
+func (c DiscountPercentages) Premier() float64    { return c.premier }
+
+func ParseDiscountPercentages(authorized, advanced, premier float64) (DiscountPercentages, error) {
+	errs := &FieldParseError{}
+	if err := ValidateFloat64InclusiveRange(authorized, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+		errs.Add(err.Error()) // TODO(rh): field name would be missing from error.
+	}
+	if err := ValidateFloat64InclusiveRange(advanced, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := ValidateFloat64InclusiveRange(premier, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if authorized > advanced {
+		message := fmt.Sprintf("Must be between 0 and %g inclusive, but was %g", advanced, authorized)
+		errs.Add(message)
+	}
+	if advanced > premier {
+		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", authorized, premier, advanced)
+		errs.Add(message)
+	}
+
+	if err := errs.NilOrError(); err != nil {
+		return DiscountPercentages{}, err
+	}
+
+	return DiscountPercentages{
+		authorized: authorized,
+		advanced:   advanced,
+		premier:    premier,
+	}, nil
+}
+
+func MustParseDiscountPercentages(authorized, advanced, premier float64) DiscountPercentages {
+	v1, err := ParseDiscountPercentages(authorized, advanced, premier)
+	if err != nil {
+		panic(err)
+	}
+	return v1
 }
 
 type TierDiscount struct {
 	AggregateRoot
 	Percentages DiscountPercentages
-	From        Date
+	From        From
 }
 
-func NewTierDiscount(id uuid.UUID, percentages DiscountPercentages, from Date, createdAt time.Time) TierDiscount {
+func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from From, createdAt time.Time) TierDiscount {
 	td := TierDiscount{
 		AggregateRoot: AggregateRoot{
 			Entity: Entity{
-				ID:        id,
+				ID:        id.V(),
 				CreatedAt: createdAt,
 			},
 		},
@@ -72,23 +145,23 @@ func NewTierDiscount(id uuid.UUID, percentages DiscountPercentages, from Date, c
 		domainEventCommon: domainEventCommon{
 			OccurredAt: createdAt,
 		},
-		ID:                   id,
-		AuthorizedPercentage: percentages.Authorized,
-		AdvancedPercentage:   percentages.Advanced,
-		PremierPercentage:    percentages.Premier,
-		From:                 from,
+		ID:                   id.V(),
+		AuthorizedPercentage: percentages.Authorized(),
+		AdvancedPercentage:   percentages.Advanced(),
+		PremierPercentage:    percentages.Premier(),
+		From:                 from.V(),
 	})
 	return td
 }
 
-func (td *TierDiscount) Update(percentages DiscountPercentages, from Date, updatedAt time.Time) error {
+func (td *TierDiscount) Update(percentages DiscountPercentages, from From, updatedAt time.Time) error {
 	today := DateFromTime(updatedAt)
-	if !from.After(today) {
+	if !from.V().After(today) {
 		return NewDomainError(
 			TierDiscountUpdateRequiresFutureFrom,
-			fmt.Sprintf("update tier discount requires from %s be after today %s", from.String(), today.String()))
+			fmt.Sprintf("update tier discount requires from %s be after today %s", from.V().String(), today.String()))
 	}
-	if td.Percentages == percentages && td.From.Equal(from) {
+	if td.Percentages == percentages && td.From == from {
 		return NewDomainError(
 			TierDiscountUpdateRequiresChange,
 			"update tier discount requires a change to tier discount")
@@ -103,20 +176,20 @@ func (td *TierDiscount) Update(percentages DiscountPercentages, from Date, updat
 			OccurredAt: updatedAt,
 		},
 		ID:                   td.ID,
-		AuthorizedPercentage: percentages.Authorized,
-		AdvancedPercentage:   percentages.Advanced,
-		PremierPercentage:    percentages.Premier,
-		From:                 from,
+		AuthorizedPercentage: percentages.Authorized(),
+		AdvancedPercentage:   percentages.Advanced(),
+		PremierPercentage:    percentages.Premier(),
+		From:                 from.V(),
 	})
 	return nil
 }
 
 func (td *TierDiscount) Remove(removeAt time.Time) error {
 	today := DateFromTime(removeAt)
-	if !td.From.After(today) {
+	if !td.From.V().After(today) {
 		return NewDomainError(
 			TierDiscountRemoveRequiresFutureFrom,
-			fmt.Sprintf("remove tier discount requires from %s to be after today %s", td.From, today))
+			fmt.Sprintf("remove tier discount requires from %s to be after today %s", td.From.V(), today))
 	}
 
 	td.AddDomainEvent(TierDiscountRemovedEvent{
@@ -130,18 +203,16 @@ func (td *TierDiscount) Remove(removeAt time.Time) error {
 
 // Application
 
-type CreateTierDiscountCommand struct {
-	ID                   uuid.UUID
+type DiscountPercentagesInput struct {
 	AuthorizedPercentage float64
 	AdvancedPercentage   float64
 	PremierPercentage    float64
-	From                 Date
 }
 
-func (r CreateTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", r.AuthorizedPercentage, r.AdvancedPercentage, r.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+type CreateTierDiscountCommand struct {
+	ID          uuid.UUID
+	Percentages DiscountPercentagesInput
+	From        Date
 }
 
 type CreateTierDiscountHandler struct {
@@ -151,35 +222,33 @@ type CreateTierDiscountHandler struct {
 }
 
 func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDiscountCommand) error {
-	found, err := h.TierDiscounts.ExistByID(ctx, req.ID)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
+	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
+		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
+	})
+	from := Parse(errs, "From", req.From, NewFrom)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	found, err := h.TierDiscounts.ExistByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if found {
-		return NewConflictError("TierDiscount", "ID", req.ID.String())
+		return NewConflictError("TierDiscount", "ID", id.V().String())
 	}
 
-	dp := DiscountPercentages{
-		Authorized: req.AuthorizedPercentage,
-		Advanced:   req.AdvancedPercentage,
-		Premier:    req.PremierPercentage,
-	}
-	tierDiscount := NewTierDiscount(req.ID, dp, req.From, h.Clock.NowUTC())
+	tierDiscount := NewTierDiscount(id, percentages, from, h.Clock.NowUTC())
 	return h.Projector.Apply(ctx, &tierDiscount)
 }
 
 type UpdateTierDiscountCommand struct {
-	ID                   uuid.UUID
-	AuthorizedPercentage float64
-	AdvancedPercentage   float64
-	PremierPercentage    float64
-	From                 Date
-}
-
-func (r UpdateTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-	ValidateDiscountPercentages("AuthorizedPercentage", "AdvancedPercentage", "PremierPercentage", r.AuthorizedPercentage, r.AdvancedPercentage, r.PremierPercentage, err)
-	ValidateDateInclusiveRange("From", r.From, MinExchangeRateFrom, MaxExchangeRateFrom, err)
+	ID          uuid.UUID
+	Percentages DiscountPercentagesInput
+	From        Date
 }
 
 type UpdateTierDiscountHandler struct {
@@ -189,20 +258,26 @@ type UpdateTierDiscountHandler struct {
 }
 
 func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDiscountCommand) error {
-	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
+	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
+		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
+	})
+	from := Parse(errs, "From", req.From, NewFrom)
+
+	if errs.HasErrors() {
+		return errs
+	}
+
+	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if tierDiscount == nil {
-		return NewNotFoundError("TierDiscount", "ID", req.ID.String())
+		return NewNotFoundError("TierDiscount", "ID", id.V().String())
 	}
 
-	dp := DiscountPercentages{
-		Authorized: req.AuthorizedPercentage,
-		Advanced:   req.AdvancedPercentage,
-		Premier:    req.PremierPercentage,
-	}
-	if err := tierDiscount.Update(dp, req.From, h.Clock.NowUTC()); err != nil {
+	if err := tierDiscount.Update(percentages, from, h.Clock.NowUTC()); err != nil {
 		return err
 	}
 	return h.Projector.Apply(ctx, tierDiscount)
@@ -212,10 +287,6 @@ type RemoveTierDiscountCommand struct {
 	ID uuid.UUID
 }
 
-func (r RemoveTierDiscountCommand) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-}
-
 type RemoveTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 	Projector     StoreProjector
@@ -223,12 +294,18 @@ type RemoveTierDiscountHandler struct {
 }
 
 func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDiscountCommand) error {
-	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
+	if errs.HasErrors() {
+		return errs
+	}
+
+	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	if tierDiscount == nil {
-		return NewNotFoundError("TierDiscount", "ID", req.ID.String())
+		return NewNotFoundError("TierDiscount", "ID", id.V().String())
 	}
 
 	if err := tierDiscount.Remove(h.Clock.NowUTC()); err != nil {
@@ -241,21 +318,23 @@ type GetTierDiscountQuery struct {
 	ID uuid.UUID
 }
 
-func (r GetTierDiscountQuery) Validate(err *ValidationError) {
-	ValidateUUIDNotZero("ID", r.ID, err)
-}
-
 type GetTierDiscountHandler struct {
 	TierDiscounts TierDiscountStore
 }
 
 func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQuery) (*TierDiscount, error) {
-	tierDiscount, err := h.TierDiscounts.GetByID(ctx, req.ID)
+	errs := &ValidationError{}
+	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
+	if errs.HasErrors() {
+		return nil, errs
+	}
+
+	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if tierDiscount == nil {
-		return nil, NewNotFoundError("TierDiscount", "ID", req.ID.String())
+		return nil, NewNotFoundError("TierDiscount", "ID", id.V().String())
 	}
 	return tierDiscount, nil
 }

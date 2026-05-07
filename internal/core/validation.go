@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type ValidationError struct {
+type ValidationError struct { // TODO(rh): rename to ValidationCollection? Or ParseErrors?
 	FieldValues map[string][]string
 }
 
@@ -47,48 +47,30 @@ func (e *ValidationError) Error() string {
 	return b.String()
 }
 
-func Validate[R Validator](req R) error {
-	err := &ValidationError{}
-	req.Validate(err)
-
-	// Having this function return error instead of ValidationError is more
-	// idiomatic. Then nil may be returned on no error, which changes a call
-	// site from
-	//
-	// if err := Validate(req); err.HasErrors() { ... }
-	//
-	// to
-	//
-	// if err := Validate(req); err != nil { ... }
-	if !err.HasErrors() {
-		return nil
-	}
-	return err
-}
-
-func ValidateUUIDNotZero(field string, value uuid.UUID, err *ValidationError) {
+func ValidateUUIDNotZero(value uuid.UUID) error {
 	if value == uuid.Nil {
-		message := fmt.Sprintf("Must be non-zero, but was %s", value.String())
-		err.Add(field, message)
+		return fmt.Errorf("must be non-zero, but was %s", value.String())
 	}
+	return nil
 }
 
-func ValidateStringCurrencyCode(field string, value string, err *ValidationError) {
+func ValidateStringCurrencyCode(value string) error {
 	_, ok := CurrencyCodes[value]
 	if !ok {
-		message := fmt.Sprintf("Must be one of the allowed currency codes, but was %s", value)
-		err.Add(field, message)
+		return fmt.Errorf("must be one of the allowed currency codes, but was %s", value)
 	}
+	return nil
 }
 
-func ValidateFloat64InclusiveRange(field string, value float64, min, max float64, err *ValidationError) {
+func ValidateFloat64InclusiveRange(value float64, min, max float64) error {
+	// TODO(rh): bug: pass in 1.123456789 and the error becomes ""Decimal places must be between 0 and 6 inclusive, but 1.123457 has 9"
 	if value < min || value > max {
-		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", min, max, value)
-		err.Add(field, message)
+		return fmt.Errorf("must be between %g and %g inclusive, but was %g", min, max, value)
 	}
+	return nil
 }
 
-func ValidateFloat64DecimalPlaces(field string, value float64, min, max int, err *ValidationError) {
+func ValidateFloat64DecimalPlaces(value float64, min, max int) error {
 	s := strconv.FormatFloat(value, 'f', -1, 64)
 	i := strings.IndexByte(s, '.')
 	places := 0
@@ -96,29 +78,14 @@ func ValidateFloat64DecimalPlaces(field string, value float64, min, max int, err
 		places = len(s) - i - 1
 	}
 	if places < min || places > max {
-		message := fmt.Sprintf("Decimal places must be between %d and %d inclusive, but %f has %d", min, max, value, places)
-		err.Add(field, message)
+		return fmt.Errorf("decimal places must be between %d and %d inclusive, but %f has %d", min, max, value, places)
 	}
+	return nil
 }
 
-func ValidateDateInclusiveRange(field string, value, min, max Date, err *ValidationError) {
+func ValidateDateInclusiveRange(value, min, max Date) error {
 	if value.Before(min) || value.After(max) {
-		message := fmt.Sprintf("Must be between %s and %s inclusive, but was %s", min, max, value.String())
-		err.Add(field, message)
+		return fmt.Errorf("must be between %s and %s inclusive, but was %s", min, max, value.String())
 	}
-}
-
-func ValidateDiscountPercentages(authorizedField, advancedField, premiumField string, authorizedValue, advancedValue, premiumValue float64, err *ValidationError) {
-	ValidateFloat64InclusiveRange(authorizedField, authorizedValue, 0, 100, err)
-	ValidateFloat64InclusiveRange(advancedField, advancedValue, 0, 100, err)
-	ValidateFloat64InclusiveRange(premiumField, premiumValue, 0, 100, err)
-
-	if authorizedValue > advancedValue {
-		message := fmt.Sprintf("Must be between 0 and %g inclusive, but was %g", advancedValue, authorizedValue)
-		err.Add(authorizedField, message)
-	}
-	if advancedValue > premiumValue {
-		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", authorizedValue, premiumValue, advancedValue)
-		err.Add(advancedField, message)
-	}
+	return nil
 }
