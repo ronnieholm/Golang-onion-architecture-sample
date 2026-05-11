@@ -57,7 +57,7 @@ func (c currencyFlat) exchangeRate() *core.ExchangeRate {
 				UpdatedAt: c.EUpdatedAt,
 			},
 			Rate: core.MustParseRate(*c.ERate),
-			From: core.MustParseFrom(*c.EFrom),
+			From: core.MustParseExchangeRateFrom(*c.EFrom),
 		}
 	} else {
 		return nil
@@ -134,14 +134,14 @@ func (cs PgCurrencyStore) GetByCode(ctx context.Context, code core.CurrencyCode)
 // TierDiscount
 
 type tierDiscountFlat struct {
-	ID                   uuid.UUID
-	AuthorizedPercentage float64
-	AdvancedPercentage   float64
-	PremierPercentage    float64
-	From                 core.Date
-	Version              int32
-	CreatedAt            time.Time
-	UpdatedAt            *time.Time
+	ID         uuid.UUID
+	Authorized float64
+	Advanced   float64
+	Premier    float64
+	From       core.Date
+	Version    int32
+	CreatedAt  time.Time
+	UpdatedAt  *time.Time
 }
 
 func (td tierDiscountFlat) tierDiscount() *core.TierDiscount {
@@ -155,10 +155,10 @@ func (td tierDiscountFlat) tierDiscount() *core.TierDiscount {
 			},
 		},
 		Percentages: core.MustParseDiscountPercentages(
-			td.AuthorizedPercentage,
-			td.AdvancedPercentage,
-			td.PremierPercentage),
-		From: core.MustParseFrom(td.From),
+			td.Authorized,
+			td.Advanced,
+			td.Premier),
+		From: core.MustParseTierDiscountFrom(td.From),
 	}
 }
 
@@ -186,9 +186,9 @@ func (r PgTierDiscountStore) mapTierDiscount(flat []*tierDiscountFlat) map[uuid.
 
 func (r PgTierDiscountStore) GetByID(ctx context.Context, id core.TierDiscountID) (*core.TierDiscount, error) {
 	var sql = `
-		SELECT td.id, td.authorized_percentage, td.advanced_percentage, td.premier_percentage, td.version, td.created_at, td.updated_at
+		SELECT td.id, td.authorized, td.advanced, td.premier, td.from, td.version, td.created_at, td.updated_at
 		FROM tier_discount td
-		WHERE td.code = $1`
+		WHERE td.id = $1`
 	rows, _ := r.Pool.Query(ctx, sql, id.V())
 	tierDiscounts, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[tierDiscountFlat])
 	if err != nil {
@@ -400,13 +400,13 @@ func (sp PgStoreProjector) project(ctx context.Context, tx pgx.Tx, event core.Do
 
 	// TierDiscount
 	case core.TierDiscountCreatedEvent:
-		q := `INSERT INTO tier_discount (id, authorized, advanced, premier, from, version, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		q := `INSERT INTO tier_discount (id, authorized, advanced, premier, "from", version, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)`
 		tag, err := tx.Exec(ctx, q, e.ID, e.Authorized, e.Advanced, e.Premier, e.From, 1, e.OccurredAt)
 		return sp.checkExec(err, tag, e, e.ID)
 	case core.TierDiscountUpdatedEvent:
 		q := `
             UPDATE tier_discount 
-            SET authorized = $1, advanced = $2, premier = $3, "from" = $5, updated_at = $6 
+            SET authorized = $1, advanced = $2, premier = $3, "from" = $4, updated_at = $5 
             WHERE id = $6`
 		tag, err := tx.Exec(ctx, q, e.Authorized, e.Advanced, e.Premier, e.From, e.ID, e.OccurredAt)
 		return sp.checkExec(err, tag, e, e.ID)

@@ -72,8 +72,10 @@ func MustParseTierDiscountId(v uuid.UUID) TierDiscountID {
 // DiscountPercentages
 
 const (
-	DiscountPercentageMin float64 = 0.
-	DiscountPercentageMax float64 = 100.
+	TierDiscountPercentageMin              float64 = 0.
+	TierDiscountPercentageMax              float64 = 100.
+	TierDiscountPercentageDecimalPlacesMin         = 0
+	TierDiscountPercentageDecimalPlacesMax         = 2
 )
 
 type DiscountPercentages struct {
@@ -88,13 +90,22 @@ func (c DiscountPercentages) Premier() float64    { return c.premier }
 
 func ParseDiscountPercentages(authorized, advanced, premier float64) (DiscountPercentages, error) {
 	errs := &FieldParseError{}
-	if err := ValidateFloat64InclusiveRange(authorized, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+	if err := ValidateFloat64InclusiveRange(authorized, TierDiscountPercentageMin, TierDiscountPercentageMax); err != nil {
 		errs.Add(err.Error()) // TODO(rh): field name would be missing from error.
 	}
-	if err := ValidateFloat64InclusiveRange(advanced, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+	if err := ValidateFloat64InclusiveRange(advanced, TierDiscountPercentageMin, TierDiscountPercentageMax); err != nil {
 		errs.Add(err.Error())
 	}
-	if err := ValidateFloat64InclusiveRange(premier, DiscountPercentageMin, DiscountPercentageMax); err != nil {
+	if err := ValidateFloat64InclusiveRange(premier, TierDiscountPercentageMin, TierDiscountPercentageMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := ValidateFloat64DecimalPlaces(authorized, TierDiscountPercentageDecimalPlacesMin, TierDiscountPercentageDecimalPlacesMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := ValidateFloat64DecimalPlaces(advanced, TierDiscountPercentageDecimalPlacesMin, TierDiscountPercentageDecimalPlacesMax); err != nil {
+		errs.Add(err.Error())
+	}
+	if err := ValidateFloat64DecimalPlaces(premier, TierDiscountPercentageDecimalPlacesMin, TierDiscountPercentageDecimalPlacesMax); err != nil {
 		errs.Add(err.Error())
 	}
 	if authorized > advanced {
@@ -105,7 +116,6 @@ func ParseDiscountPercentages(authorized, advanced, premier float64) (DiscountPe
 		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", authorized, premier, advanced)
 		errs.Add(message)
 	}
-
 	if err := errs.NilOrError(); err != nil {
 		return DiscountPercentages{}, err
 	}
@@ -125,13 +135,40 @@ func MustParseDiscountPercentages(authorized, advanced, premier float64) Discoun
 	return v1
 }
 
+var (
+	TierDiscountFromMin = NewDate(2024, 1, 1)
+	TierDiscountFromMax = NewDate(2034, 12, 31)
+)
+
+type TierDiscountFrom struct {
+	v Date
+}
+
+func (f TierDiscountFrom) V() Date        { return f.v }
+func (f TierDiscountFrom) String() string { return f.v.String() }
+
+func ParseTierDiscountFrom(v Date) (TierDiscountFrom, error) {
+	if err := ValidateDateInclusiveRange(v, TierDiscountFromMin, TierDiscountFromMax); err != nil {
+		return TierDiscountFrom{}, err
+	}
+	return TierDiscountFrom{v}, nil
+}
+
+func MustParseTierDiscountFrom(v Date) TierDiscountFrom {
+	v1, err := ParseTierDiscountFrom(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
 type TierDiscount struct {
 	AggregateRoot
 	Percentages DiscountPercentages
-	From        From
+	From        TierDiscountFrom
 }
 
-func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from From, createdAt time.Time) TierDiscount {
+func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from TierDiscountFrom, createdAt time.Time) TierDiscount {
 	td := TierDiscount{
 		AggregateRoot: AggregateRoot{
 			Entity: Entity{
@@ -139,7 +176,8 @@ func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from Fr
 				CreatedAt: createdAt,
 			},
 		},
-		From: from,
+		Percentages: percentages,
+		From:        from,
 	}
 
 	td.AddDomainEvent(TierDiscountCreatedEvent{
@@ -155,7 +193,7 @@ func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from Fr
 	return td
 }
 
-func (td *TierDiscount) Update(percentages DiscountPercentages, from From, updatedAt time.Time) error {
+func (td *TierDiscount) Update(percentages DiscountPercentages, from TierDiscountFrom, updatedAt time.Time) error {
 	today := DateFromTime(updatedAt)
 	if !from.V().After(today) {
 		return NewDomainError(
@@ -226,9 +264,9 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 	errs := &RequestParseError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
-		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
+		return ParseDiscountPercentages(dp.Authorized, dp.Advanced, dp.Premier)
 	})
-	from := Parse(errs, "From", req.From, ParseFrom)
+	from := Parse(errs, "From", req.From, ParseTierDiscountFrom)
 	if errs.HasErrors() {
 		return errs
 	}
@@ -263,7 +301,7 @@ func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDis
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
 	})
-	from := Parse(errs, "From", req.From, ParseFrom)
+	from := Parse(errs, "From", req.From, ParseTierDiscountFrom)
 	if errs.HasErrors() {
 		return errs
 	}

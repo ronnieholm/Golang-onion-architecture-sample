@@ -101,10 +101,10 @@ func CreateCurrencyCommandGen() *rapid.Generator[core.CreateCurrencyCommand] {
 }
 
 type CreateCurrencyValidFixture struct {
-	Clock            core.Clock
-	Noise            []core.CreateCurrencyCommand
-	CreateCurrency   core.CreateCurrencyCommand
-	GetCurrecyByCode core.GetCurrencyQuery
+	Clock          core.Clock
+	Noise          []core.CreateCurrencyCommand
+	CreateCurrency core.CreateCurrencyCommand
+	GetCurrecy     core.GetCurrencyQuery
 }
 
 func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
@@ -112,7 +112,7 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 		clock := FakeClockGen().Draw(t, "clock")
 		codes := rapid.SliceOfNDistinct(
 			CurrencyCodeGen(),
-			/* min */ 1 /* max */, 2,
+			/* min */ 1 /* max */, 2, // TOOD(rh): why not 0 to 1?
 			func(s string) any { return s },
 		).Draw(t, "codes")
 
@@ -131,15 +131,15 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 		}
 
 		return CreateCurrencyValidFixture{
-			Clock:            clock,
-			Noise:            noise,
-			CreateCurrency:   create,
-			GetCurrecyByCode: get,
+			Clock:          clock,
+			Noise:          noise,
+			CreateCurrency: create,
+			GetCurrecy:     get,
 		}
 	})
 }
 
-type CreateCurrencyDuplicateInvalidFixture = struct {
+type CreateCurrencyDuplicateInvalidFixture struct {
 	Base           CreateCurrencyValidFixture
 	CreateCurrency core.CreateCurrencyCommand
 }
@@ -186,8 +186,8 @@ func ExchangeRateRateGen() *rapid.Generator[float64] {
 		decimalPlaces := rapid.
 			IntRange(core.ExchangeRateDecimalPlacesMin, core.ExchangeRateDecimalPlacesMax).
 			Draw(t, "decimal_places")
-		ratio := math.Pow10(decimalPlaces)
 		rate := rapid.Float64Range(core.ExchangeRateMin, core.ExchangeRateMax).Draw(t, "rate")
+		ratio := math.Pow10(decimalPlaces)
 		return math.Round(rate*ratio) / ratio
 	})
 }
@@ -221,11 +221,11 @@ func AddExchangeRateCommandGen() *rapid.Generator[core.AddExchangeRateCommand] {
 }
 
 type AddExchangeRateUniqueFromValidFixture = struct {
-	Clock             core.Clock
-	CreateCurrency    core.CreateCurrencyCommand
-	AddExchangeRates  []core.AddExchangeRateCommand
-	GetCurrencyByCode core.GetCurrencyQuery
-	Expected          map[uuid.UUID]core.AddExchangeRateCommand
+	Clock            core.Clock
+	CreateCurrency   core.CreateCurrencyCommand
+	AddExchangeRates []core.AddExchangeRateCommand
+	GetCurrency      core.GetCurrencyQuery
+	Expected         map[uuid.UUID]core.AddExchangeRateCommand
 }
 
 func AddExchangeRateUniqueFromValidGen() *rapid.Generator[AddExchangeRateUniqueFromValidFixture] {
@@ -257,11 +257,11 @@ func AddExchangeRateUniqueFromValidGen() *rapid.Generator[AddExchangeRateUniqueF
 		}
 
 		return AddExchangeRateUniqueFromValidFixture{
-			Clock:             clock,
-			CreateCurrency:    create,
-			AddExchangeRates:  adds,
-			GetCurrencyByCode: get,
-			Expected:          expected,
+			Clock:            clock,
+			CreateCurrency:   create,
+			AddExchangeRates: adds,
+			GetCurrency:      get,
+			Expected:         expected,
 		}
 	})
 }
@@ -647,4 +647,124 @@ func RemoveExchangeRateFromPolicyGen() *rapid.Generator[RemoveExchangeRateFromPo
 			ShouldPass:         shouldPass,
 		}
 	})
+}
+
+func DiscountPercentagesGen() *rapid.Generator[core.DiscountPercentagesInput] {
+	return rapid.Custom(func(t *rapid.T) core.DiscountPercentagesInput {
+		dp := rapid.SliceOfN(
+			rapid.IntRange(core.TierDiscountPercentageDecimalPlacesMin, core.TierDiscountPercentageDecimalPlacesMax),
+			3, 3).Draw(t, "decimal_places")
+		ps := rapid.SliceOfNDistinct(
+			rapid.Float64Range(core.TierDiscountPercentageMin, core.TierDiscountPercentageMax),
+			3, 3,
+			func(f float64) any { return f },
+		).Draw(t, "percentages")
+
+		p := [3]float64{}
+		for i := range p {
+			ratio := math.Pow10(dp[i])
+			p[i] = math.Round(ps[i]*ratio) / ratio
+		}
+		slices.Sort(p[:])
+		return core.DiscountPercentagesInput{
+			Authorized: p[0],
+			Advanced:   p[1],
+			Premier:    p[2],
+		}
+	})
+}
+
+func TierDiscountFromGen() *rapid.Generator[core.Date] {
+	return rapid.Custom(func(t *rapid.T) core.Date {
+		return DateBetweenGen(core.TierDiscountFromMin, core.TierDiscountFromMin).Draw(t, "from")
+	})
+}
+
+func TierDiscountAfterGen(after core.Date) *rapid.Generator[core.Date] {
+	if after.After(core.TierDiscountFromMax) {
+		panic("after must be after high from")
+	}
+	d := after.AddDate(0, 0, 1)
+
+	return rapid.Custom(func(t *rapid.T) core.Date {
+		return DateBetweenGen(d, core.TierDiscountFromMax).Draw(t, "from")
+	})
+}
+
+func CreateTierDiscountCommandGen() *rapid.Generator[core.CreateTierDiscountCommand] {
+	return rapid.Custom(func(t *rapid.T) core.CreateTierDiscountCommand {
+		return core.CreateTierDiscountCommand{
+			ID:          UUIDGen().Draw(t, "id"),
+			Percentages: DiscountPercentagesGen().Draw(t, "percentages"),
+			From:        TierDiscountFromGen().Draw(t, "from"),
+		}
+	})
+}
+
+type CreateTierDiscountValidFixture struct {
+	Clock              core.Clock
+	Noise              []core.CreateTierDiscountCommand
+	CreateTierDiscount core.CreateTierDiscountCommand
+	GetTierDiscount    core.GetTierDiscountQuery
+}
+
+func CreateTierDiscountValidGen() *rapid.Generator[CreateTierDiscountValidFixture] {
+	return rapid.Custom(func(t *rapid.T) CreateTierDiscountValidFixture {
+		clock := FakeClockGen().Draw(t, "clock")
+		uniqueDates := rapid.SliceOfNDistinct(
+			TierDiscountAfterGen(clock.Today()),
+			/* min */ 1 /* max */, 2,
+			func(d core.Date) any { return d },
+		).Draw(t, "unique_dates")
+
+		noise := make([]core.CreateTierDiscountCommand, len(uniqueDates)-1)
+		for i := 0; i < len(uniqueDates)-1; i++ {
+			noise[i] = CreateTierDiscountCommandGen().Draw(t, fmt.Sprintf("noise_%d", i))
+			noise[i].From = uniqueDates[i]
+		}
+
+		create := CreateTierDiscountCommandGen().Draw(t, "create")
+		create.From = uniqueDates[len(uniqueDates)-1]
+
+		get := core.GetTierDiscountQuery{
+			ID: create.ID,
+		}
+
+		return CreateTierDiscountValidFixture{
+			Clock:              clock,
+			Noise:              noise,
+			CreateTierDiscount: create,
+			GetTierDiscount:    get,
+		}
+	})
+}
+
+type CreateTierDiscountDuplicateInvalidFixture struct {
+	Base               CreateTierDiscountValidFixture
+	CreateTierDiscount core.CreateTierDiscountCommand
+}
+
+func CreateTierDiscountDuplicateIDInvalidGen() *rapid.Generator[CreateTierDiscountDuplicateInvalidFixture] {
+	// return rapid.Custom(func(t *rapid.T) CreateTierDiscountDuplicateInvalidFixture {
+	// 	base := CreateTierDiscountValidGen().Draw(t, "base")
+
+	// 	// Mutate all other fields except ID.
+
+	// 	// Percentages
+	// 	// From (unique)
+
+	// 	code := CurrencyCodeGen().
+	// 		Filter(func(c string) bool { return c != base.CreateCurrency.Code }).
+	// 		Draw(t, "code")
+	// 	create := core.CreateTierDiscountCommand{
+	// 		ID:   base.Create.ID,
+	// 		Code: code,
+	// 	}
+
+	// 	return CreateTierDiscountDuplicateInvalidFixture{
+	// 		Base:               base,
+	// 		CreateTierDiscount: create,
+	// 	}
+	// })
+	return nil
 }

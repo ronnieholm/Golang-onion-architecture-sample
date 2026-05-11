@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"pgregory.net/rapid"
 )
@@ -17,102 +19,111 @@ type TierDiscountTests struct {
 	dispatcher infrastructure.Dispatcher
 }
 
-func (tdt *TierDiscountTests) SetupSuite() {
-	tdt.ctx = context.Background()
-	tdt.config = loadConfig()
-	tdt.clock = &SwitchableClock{}
-	tdt.dispatcher = infrastructure.NewDispatcher(tdt.ctx, *config, infrastructure.WithClock(tdt.clock))
+func (td *TierDiscountTests) SetupSuite() {
+	td.ctx = context.Background()
+	td.config = loadConfig()
+	td.clock = &SwitchableClock{}
+	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *config, infrastructure.WithClock(td.clock))
 }
 
-func (tdt *TierDiscountTests) TearDownSuite() {
-	tdt.dispatcher.Close()
+func (td *TierDiscountTests) TearDownSuite() {
+	td.dispatcher.Close()
 }
 
-func (tdt *TierDiscountTests) cleanUp() {
-	resetDB(tdt.ctx, tdt.dispatcher.PgxPool)
+func (td *TierDiscountTests) cleanUp() {
+	resetDB(td.ctx, td.dispatcher.PgxPool)
 }
 
-func (ct *TierDiscountTests) TestCreateTierDiscountValid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
-		// fx := CreateCurrencyValidGen().Draw(t, "fx")
-		// ct.setupCurrency(t, fx)
+func (td *TierDiscountTests) setupTierDiscount(t *rapid.T, fx CreateTierDiscountValidFixture) {
+	td.clock.Current = fx.Clock
+	for _, cmd := range fx.Noise {
+		_, err := td.dispatcher.CreateTierDiscount(td.ctx, cmd)
+		require.NoError(t, err, "Failed on ID %s", cmd.ID.String())
+	}
+}
 
-		// _, err := ct.dispatcher.CreateCurrency(ct.ctx, fx.CreateCurrency)
-		// require.NoError(t, err)
+func (td *TierDiscountTests) TestCreateTierDiscountValid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
+		fx := CreateTierDiscountValidGen().Draw(t, "fx")
+		td.setupTierDiscount(t, fx)
 
-		// c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.GetCurrecyByCode)
-		// require.NoError(t, err)
-		// assert.Equal(t, fx.CreateCurrency.ID, c.ID)
-		// assert.Equal(t, fx.CreateCurrency.Code, c.Code.V())
-		// Assume system fields such as CreatedAt, UpdatedAt, Version are
-		// correct and focus on the domain.
+		_, err := td.dispatcher.CreateTierDiscount(td.ctx, fx.CreateTierDiscount)
+		require.NoError(t, err)
+
+		t_, err := td.dispatcher.GetTierDiscount(td.ctx, fx.GetTierDiscount)
+		require.NoError(t, err)
+		assert.Equal(t, fx.CreateTierDiscount.ID, t_.ID)
+		assert.Equal(t, fx.CreateTierDiscount.Percentages.Authorized, t_.Percentages.Authorized())
+		assert.Equal(t, fx.CreateTierDiscount.Percentages.Advanced, t_.Percentages.Advanced())
+		assert.Equal(t, fx.CreateTierDiscount.Percentages.Premier, t_.Percentages.Premier())
+		assert.Equal(t, fx.CreateTierDiscount.From, t_.From.V())
 	})
 }
 
-func (ct *TierDiscountTests) TestCreateTierDiscountDuplicateIDInvalid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestCreateTierDiscountDuplicateIDInvalid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestCreateTierDiscountUniqueFromValid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestCreateTierDiscountUniqueFromValid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestCreateTierDiscountUniqueFromInvalid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestCreateTierDiscountUniqueFromInvalid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestCreateTierDiscountFromPolicy() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestCreateTierDiscountFromPolicy() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestUpdateTierDiscountValid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestUpdateTierDiscountValid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestUpdateTierDiscountIDInvalid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestUpdateTierDiscountIDInvalid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestUpdateTierDiscountUnchangedInvalid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestUpdateTierDiscountUnchangedInvalid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestUpdateTierDiscountFromPolicy() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestUpdateTierDiscountFromPolicy() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestRemoveTierDiscountValid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestRemoveTierDiscountValid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestRemoveTierDiscountIDInvalid() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestRemoveTierDiscountIDInvalid() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 
-func (ct *TierDiscountTests) TestRemoveTierDiscountFromPolicy() {
-	rapid.Check(ct.T(), func(t *rapid.T) {
-		ct.cleanUp()
+func (td *TierDiscountTests) TestRemoveTierDiscountFromPolicy() {
+	rapid.Check(td.T(), func(t *rapid.T) {
+		td.cleanUp()
 	})
 }
 

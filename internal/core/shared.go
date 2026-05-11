@@ -457,25 +457,3 @@ func (d Date) AddDate(year, month, days int) Date {
 	dt := d.Time.AddDate(year, month, days)
 	return DateFromTime(dt)
 }
-
-type From struct {
-	v Date
-}
-
-func (f From) V() Date        { return f.v }
-func (f From) String() string { return f.v.String() }
-
-func ParseFrom(v Date) (From, error) {
-	if err := ValidateDateInclusiveRange(v, ExchangeRateFromMin, ExchangeRateFromMax); err != nil {
-		return From{}, err
-	}
-	return From{v}, nil
-}
-
-func MustParseFrom(v Date) From {
-	v1, err := ParseFrom(v)
-	if err != nil {
-		panic(err)
-	}
-	return v1
-}

@@ -112,11 +112,6 @@ func MustParseExchangeRateId(v uuid.UUID) ExchangeRateID {
 	return v1
 }
 
-var (
-	ExchangeRateFromMin = NewDate(2024, 1, 1)
-	ExchangeRateFromMax = NewDate(2034, 12, 31)
-)
-
 type Rate struct { // TODO(rh): call ExchangeRateRate?
 	v float64
 }
@@ -145,13 +140,40 @@ func MustParseRate(v float64) Rate {
 	return v1
 }
 
+var (
+	ExchangeRateFromMin = NewDate(2024, 1, 1)
+	ExchangeRateFromMax = NewDate(2034, 12, 31)
+)
+
+type ExchangeRateFrom struct {
+	v Date
+}
+
+func (f ExchangeRateFrom) V() Date        { return f.v }
+func (f ExchangeRateFrom) String() string { return f.v.String() }
+
+func ParseExchangeRateFrom(v Date) (ExchangeRateFrom, error) {
+	if err := ValidateDateInclusiveRange(v, ExchangeRateFromMin, ExchangeRateFromMax); err != nil {
+		return ExchangeRateFrom{}, err
+	}
+	return ExchangeRateFrom{v}, nil
+}
+
+func MustParseExchangeRateFrom(v Date) ExchangeRateFrom {
+	v1, err := ParseExchangeRateFrom(v)
+	if err != nil {
+		panic(err)
+	}
+	return v1
+}
+
 type ExchangeRate struct {
 	Entity
 	Rate Rate
-	From From
+	From ExchangeRateFrom
 }
 
-func NewExchangeRate(id ExchangeRateID, rate Rate, from From, createdAt time.Time) ExchangeRate {
+func NewExchangeRate(id ExchangeRateID, rate Rate, from ExchangeRateFrom, createdAt time.Time) ExchangeRate {
 	return ExchangeRate{
 		Entity: Entity{
 			ID:        id.V(), // TODO(rh): fix
@@ -163,7 +185,7 @@ func NewExchangeRate(id ExchangeRateID, rate Rate, from From, createdAt time.Tim
 	}
 }
 
-func (e *ExchangeRate) Update(rate Rate, from From, updatedAt time.Time) error {
+func (e *ExchangeRate) Update(rate Rate, from ExchangeRateFrom, updatedAt time.Time) error {
 	if e.Rate == rate && e.From == from {
 		return NewDomainError(
 			CurrencyUpdateRequiresChange,
@@ -233,7 +255,7 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 	return nil
 }
 
-func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from From, updatedAt time.Time) error {
+func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from ExchangeRateFrom, updatedAt time.Time) error {
 	// TODO(rh): move check to ExchangeRate entity? Similar for other methods.
 	today := DateFromTime(updatedAt)
 	if !from.V().After(today) {
@@ -399,7 +421,7 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, ParseFrom)
+	from := Parse(errs, "From", req.From, ParseExchangeRateFrom)
 	if errs.HasErrors() {
 		return errs
 	}
@@ -448,7 +470,7 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, ParseFrom)
+	from := Parse(errs, "From", req.From, ParseExchangeRateFrom)
 	if errs.HasErrors() {
 		return errs
 	}
