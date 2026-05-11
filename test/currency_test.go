@@ -248,7 +248,7 @@ func (ct *CurrencyTests) TestUpdateExchangeRateFromPolicy() {
 	})
 }
 
-func (ct *CurrencyTests) TestRemoveCurrencyValid() {
+func (ct *CurrencyTests) TestRemoveCurrencyValid() { // TODO(rh): combine TestRemoveCurrencyValid and TestRemoveCurrencyInvalid
 	rapid.Check(ct.T(), func(t *rapid.T) {
 		ct.cleanUp()
 		fx := RemoveCurrencyValidGen().Draw(t, "fx")

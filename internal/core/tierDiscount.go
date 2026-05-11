@@ -17,20 +17,20 @@ type TierDiscountStore interface {
 
 type TierDiscountCreatedEvent struct {
 	domainEventCommon
-	ID                   uuid.UUID
-	AuthorizedPercentage float64
-	AdvancedPercentage   float64
-	PremierPercentage    float64
-	From                 Date
+	ID         uuid.UUID
+	Authorized float64
+	Advanced   float64
+	Premier    float64
+	From       Date
 }
 
 type TierDiscountUpdatedEvent struct {
 	domainEventCommon
-	ID                   uuid.UUID
-	AuthorizedPercentage float64
-	AdvancedPercentage   float64
-	PremierPercentage    float64
-	From                 Date
+	ID         uuid.UUID
+	Authorized float64
+	Advanced   float64
+	Premier    float64
+	From       Date
 }
 
 type TierDiscountRemovedEvent struct {
@@ -146,11 +146,11 @@ func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from Fr
 		domainEventCommon: domainEventCommon{
 			OccurredAt: createdAt,
 		},
-		ID:                   id.V(),
-		AuthorizedPercentage: percentages.Authorized(),
-		AdvancedPercentage:   percentages.Advanced(),
-		PremierPercentage:    percentages.Premier(),
-		From:                 from.V(),
+		ID:         id.V(),
+		Authorized: percentages.Authorized(),
+		Advanced:   percentages.Advanced(),
+		Premier:    percentages.Premier(),
+		From:       from.V(),
 	})
 	return td
 }
@@ -176,11 +176,11 @@ func (td *TierDiscount) Update(percentages DiscountPercentages, from From, updat
 		domainEventCommon: domainEventCommon{
 			OccurredAt: updatedAt,
 		},
-		ID:                   td.ID,
-		AuthorizedPercentage: percentages.Authorized(),
-		AdvancedPercentage:   percentages.Advanced(),
-		PremierPercentage:    percentages.Premier(),
-		From:                 from.V(),
+		ID:         td.ID,
+		Authorized: percentages.Authorized(),
+		Advanced:   percentages.Advanced(),
+		Premier:    percentages.Premier(),
+		From:       from.V(),
 	})
 	return nil
 }
@@ -205,9 +205,9 @@ func (td *TierDiscount) Remove(removeAt time.Time) error {
 // Application
 
 type DiscountPercentagesInput struct {
-	AuthorizedPercentage float64
-	AdvancedPercentage   float64
-	PremierPercentage    float64
+	Authorized float64
+	Advanced   float64
+	Premier    float64
 }
 
 type CreateTierDiscountCommand struct {
@@ -226,7 +226,7 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 	errs := &RequestParseError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
-		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
+		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
 	})
 	from := Parse(errs, "From", req.From, ParseFrom)
 	if errs.HasErrors() {
@@ -261,7 +261,7 @@ func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDis
 	errs := &RequestParseError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
-		return ParseDiscountPercentages(dp.AdvancedPercentage, dp.AdvancedPercentage, dp.PremierPercentage)
+		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
 	})
 	from := Parse(errs, "From", req.From, ParseFrom)
 	if errs.HasErrors() {

@@ -93,10 +93,6 @@ func (a *AggregateRoot) GetAggregateRoot() *AggregateRoot {
 	return a
 }
 
-// TODO(rh): remove?
-type ValueObject struct {
-}
-
 func stringsToMap(s ...string) map[string]string {
 	if len(s)%2 != 0 {
 		panic("expected equal number of elements")
@@ -323,9 +319,8 @@ func MustParseCurrencyCode(v string) CurrencyCode {
 	return v1
 }
 
-// For this system we don't need the accuracy afforded by a decimal type.
+// Money in this system doesn't require the accuracy afforded by a decimal type.
 type Money struct {
-	ValueObject
 	Amount float64
 	Code   string
 }

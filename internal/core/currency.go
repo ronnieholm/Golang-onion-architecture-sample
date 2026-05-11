@@ -416,7 +416,7 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 		if e.ID == req.ID {
 			return NewConflictError("ExchangeRate", "ID", id.String())
 		}
-		if e.From.V().Equal(req.From) {
+		if e.From.V() == req.From {
 			return NewConflictError("ExchangeRate", "From", from.String())
 		}
 	}

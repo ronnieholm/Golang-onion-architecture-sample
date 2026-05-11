@@ -1,5 +1,5 @@
 ---
-title: Reseller Loyalty. Apr 27, 2026
+title: Reseller Loyalty. May 11, 2026
 ---
 erDiagram
     product_group {
@@ -30,9 +30,9 @@ erDiagram
 
     tier_discount {
         uuid id PK
-        decimal authorized_percentage "[0; 100]"
-        decimal advanced_percentage "[0; 100]"
-        decimal premier_percentage "[0; 100]"
+        decimal authorized "[0; 100]"
+        decimal advanced "[0; 100]"
+        decimal premier "[0; 100]"
         date from
         int version
         datetime created_at
@@ -56,7 +56,7 @@ erDiagram
         datetime updated_at "nullable"
     }
 
-    threshold_group {
+    revenue_group {
         uuid id PK
         enum country_code "ISO 3166"
         enum currency_code "ISO 4217"
@@ -65,13 +65,13 @@ erDiagram
         datetime updated_at "nullable"
     }
 
-    threshold_group_limit {
+    revenue_group_limit {
         uuid id PK
-        uuid threshold_group_id FK
+        uuid revenue_group_id FK
         enum currency_code "ISO 4217"
-        amount minimum_authorized_net_revenue
-        amount minimum_advanced_net_revenue
-        amount minimum_premier_net_revenue
+        amount authorized
+        amount advanced
+        amount premier
         date from
         datetime created_at
         datetime updated_at "nullable"
@@ -80,7 +80,7 @@ erDiagram
     cluster {
         uuid id PK
         uuid external_id FK "In external system"
-        uuid threshold_group_id FK
+        uuid revenue_group_id FK
         enum calculated_tier_minimum "nullable"
         enum calculated_tier_year_to_date "nullable"
         amount calculated_net_revenue_year_to_date "nullable"
@@ -159,8 +159,8 @@ erDiagram
     product_group ||--o{ product_group_weight : has
     product_group ||--o{ product : has
     cluster ||--|{ reseller : contains
-    threshold_group ||--o{ cluster : classifies
-    threshold_group ||--o{ threshold_group_limit : has
+    revenue_group ||--o{ cluster : classifies
+    revenue_group ||--o{ revenue_group_limit : has
     currency ||--o{ exchange_rate : has
     reseller ||--o{ billing : has
     billing ||--o{ billing_item : has

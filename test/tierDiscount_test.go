@@ -32,7 +32,7 @@ func (tdt *TierDiscountTests) cleanUp() {
 	resetDB(tdt.ctx, tdt.dispatcher.PgxPool)
 }
 
-func (ct *CurrencyTests) TestCreateTierDiscountValid() {
+func (ct *TierDiscountTests) TestCreateTierDiscountValid() {
 	rapid.Check(ct.T(), func(t *rapid.T) {
 		ct.cleanUp()
 		// fx := CreateCurrencyValidGen().Draw(t, "fx")
@@ -50,7 +50,71 @@ func (ct *CurrencyTests) TestCreateTierDiscountValid() {
 	})
 }
 
-// TODO(rh): Come up with tests.
+func (ct *TierDiscountTests) TestCreateTierDiscountDuplicateIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestCreateTierDiscountUniqueFromValid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestCreateTierDiscountUniqueFromInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestCreateTierDiscountFromPolicy() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestUpdateTierDiscountValid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestUpdateTierDiscountIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestUpdateTierDiscountUnchangedInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestUpdateTierDiscountFromPolicy() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestRemoveTierDiscountValid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestRemoveTierDiscountIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
+
+func (ct *TierDiscountTests) TestRemoveTierDiscountFromPolicy() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
+	})
+}
 
 func TestTierDiscount(t *testing.T) {
 	suite.Run(t, new(TierDiscountTests))

@@ -9,8 +9,8 @@
 -- product_group
 --   product_group_weight
 -- product
--- threshold_group
---   threshold_group_limit
+-- revenue_group
+--   revenue_group_limit
 -- cluster
 -- reseller
 --   billing
@@ -169,9 +169,9 @@ CREATE TABLE IF NOT EXISTS public.product
 ALTER TABLE IF EXISTS public.product
     OWNER to postgres;
 
--- threshold_group
+-- revenue_group
 
-CREATE TABLE IF NOT EXISTS public.threshold_group
+CREATE TABLE IF NOT EXISTS public.revenue_group
 (
     id uuid NOT NULL,
     country_code character varying(2) COLLATE pg_catalog."default" NOT NULL,
@@ -179,35 +179,35 @@ CREATE TABLE IF NOT EXISTS public.threshold_group
     version int NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone,
-    CONSTRAINT pk_threshold_group_id PRIMARY KEY (id),
-    CONSTRAINT uq_threshold_group_country_code UNIQUE (country_code)
+    CONSTRAINT pk_revenue_group_id PRIMARY KEY (id),
+    CONSTRAINT uq_revenue_group_country_code UNIQUE (country_code)
 );
 
-ALTER TABLE IF EXISTS public.threshold_group
+ALTER TABLE IF EXISTS public.revenue_group
     OWNER to postgres;
 
--- threshold_group_limit
+-- revenue_group_limit
 
-CREATE TABLE IF NOT EXISTS public.threshold_group_limit
+CREATE TABLE IF NOT EXISTS public.revenue_group_limit
 (
     id uuid NOT NULL,
-    threshold_group_id uuid NOT NULL,
+    revenue_group_id uuid NOT NULL,
     currency_code character varying(3) COLLATE pg_catalog."default" NOT NULL,
-    minimum_authorized_net_revenue numeric(12,2) NOT NULL,
-    minimum_advanced_net_revenue numeric(12,2) NOT NULL,
-    minimum_premier_net_revenue numeric(12,2) NOT NULL,
+    authorized numeric(12,2) NOT NULL,
+    advanced numeric(12,2) NOT NULL,
+    premier numeric(12,2) NOT NULL,
     "from" date NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone,
-    CONSTRAINT pk_threshold_group_limit_id PRIMARY KEY (id),
-    CONSTRAINT uq_threshold_group_limit_from UNIQUE ("from"),
-    CONSTRAINT fk_threshold_group_id FOREIGN KEY (threshold_group_id)
-        REFERENCES public.threshold_group (id) MATCH SIMPLE
+    CONSTRAINT pk_revenue_group_limit_id PRIMARY KEY (id),
+    CONSTRAINT uq_revenue_group_limit_from UNIQUE ("from"),
+    CONSTRAINT fk_revenue_group_id FOREIGN KEY (revenue_group_id)
+        REFERENCES public.revenue_group (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
 
-ALTER TABLE IF EXISTS public.threshold_group_limit
+ALTER TABLE IF EXISTS public.revenue_group_limit
     OWNER to postgres;
 
 -- cluster
@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS public.cluster
 (
     id uuid NOT NULL,
     external_id uuid NOT NULL,
-    threshold_group_id uuid NOT NULL,
+    revenue_group_id uuid NOT NULL,
     calculated_reseller_tier_minimum character varying(10) COLLATE pg_catalog."default",
     calculated_reseller_tier_year_to_date character varying(10) COLLATE pg_catalog."default",
     calculated_reseller_tier_projected character varying(10) COLLATE pg_catalog."default",
@@ -228,8 +228,8 @@ CREATE TABLE IF NOT EXISTS public.cluster
     updated_at timestamp with time zone,
     CONSTRAINT pk_cluster_id PRIMARY KEY (id),
     CONSTRAINT uq_cluster_external_id UNIQUE (external_id),
-    CONSTRAINT fk_threshold_group_id FOREIGN KEY (threshold_group_id)
-        REFERENCES public.threshold_group (id) MATCH SIMPLE
+    CONSTRAINT fk_revenue_group_id FOREIGN KEY (revenue_group_id)
+        REFERENCES public.revenue_group (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE NO ACTION
 );
@@ -337,9 +337,9 @@ ALTER TABLE IF EXISTS public.billing_item
 CREATE TABLE IF NOT EXISTS public.tier_discount
 (
     id uuid NOT NULL,
-    authorized_percentage numeric(5,2) NOT NULL,
-    advanced_percentage numeric(5,2) NOT NULL,
-    premier_percentage numeric(5,2) NOT NULL,
+    authorized numeric(5,2) NOT NULL,
+    advanced numeric(5,2) NOT NULL,
+    premier numeric(5,2) NOT NULL,
     "from" date NOT NULL,
     version int NOT NULL,
     created_at timestamp with time zone NOT NULL,

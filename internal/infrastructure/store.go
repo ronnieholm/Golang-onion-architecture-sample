@@ -318,6 +318,11 @@ func (sp PgStoreProjector) Apply(ctx context.Context, aggregates ...core.Aggrega
 					return err
 				}
 			}
+
+			// Beware that if the transaction fails, the domain events are gone.
+			// The store isn't designed around retrying a failed transaction.
+			// Instead changes to aggregates should be re-applied by re-running
+			// the commands/queries, starting from up-to-date aggregate state.
 			root.ClearDomainEvents()
 		}
 		return nil
@@ -395,12 +400,19 @@ func (sp PgStoreProjector) project(ctx context.Context, tx pgx.Tx, event core.Do
 
 	// TierDiscount
 	case core.TierDiscountCreatedEvent:
-		return nil
+		q := `INSERT INTO tier_discount (id, authorized, advanced, premier, from, version, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		tag, err := tx.Exec(ctx, q, e.ID, e.Authorized, e.Advanced, e.Premier, e.From, 1, e.OccurredAt)
+		return sp.checkExec(err, tag, e, e.ID)
 	case core.TierDiscountUpdatedEvent:
-		return nil
+		q := `
+            UPDATE tier_discount 
+            SET authorized = $1, advanced = $2, premier = $3, "from" = $5, updated_at = $6 
+            WHERE id = $6`
+		tag, err := tx.Exec(ctx, q, e.Authorized, e.Advanced, e.Premier, e.From, e.ID, e.OccurredAt)
+		return sp.checkExec(err, tag, e, e.ID)
 	case core.TierDiscountRemovedEvent:
-		return nil
-
+		tag, err := tx.Exec(ctx, "DELETE FROM tier_discount WHERE id = $1", e.ID)
+		return sp.checkExec(err, tag, e, e.ID)
 	default:
 		panic(fmt.Sprintf("unhandled type: %T", e))
 	}
