@@ -64,6 +64,10 @@ func (td *TierDiscountTests) TestCreateTierDiscountValid() {
 func (td *TierDiscountTests) TestCreateTierDiscountDuplicateIDInvalid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
+		// Create CreateTierDiscountDuplicateIDInvalidGen()
+		//   Generate noise
+		//     Percentages and from should be different across noise
+		//   Generate duplicate by drawing a new CreateXCommandGen() and setting ID from noise
 	})
 }
 

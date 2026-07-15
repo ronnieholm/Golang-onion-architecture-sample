@@ -1,8 +1,7 @@
 # TODO
 
-- Split database access into writer and reader types and pass list of aggregates into writer to support changes to multiple aggregates in a single transaction.
 - Have Makefile test call bin/tests/github.com-ronnieholm-resellerloyalty-test.test and pass in -rapid-checks=5 pass in CurrencyTests.
-- Use slogger across infrastructure (see Golang presentation from a few years ago).
+- Use slogger across infrastructure (see Golang presentation from a few years ago. Jonathan Amsterdam).
   - https://www.dash0.com/guides/golang-logging-libraries#1-slog
 - Add Makefile target for code coverage report from running tests.
 - Similar to codes on domain errors, validations could return a code like 1000 = name_too_long, inspired by Django (see Pydantic error messages)
@@ -15,7 +14,7 @@
   - docker run -v "$PWD":/app -w app go run main.go
   - Deployment should uses multi-stage Docker builds to minimise image size
 - Setup GitHub CI pipeline
-- For domain_events, add a correlation id column. That ID is set qhen the request comes in and should be included in every log entry.
+- For domain_events, add a correlation id column. That ID is set when the request comes in and should be included in every log entry.
 - Add health check endpoint.
 - Instead of cleaning up the database, implement the nested tx (savepoint) approach (from python video) so that tests can run in parallel
   without interfering with each other. How much faster is it?
@@ -27,4 +26,4 @@
         print("\nTest failed: Data committed for debugging.")
      else:
         transaction.rollback() # Clean up as usual
-- Switch to value object. During deserialization, call MustParse() which may panic.        
+- Does it make sense with background noise in prop tests when you also have state machine tests

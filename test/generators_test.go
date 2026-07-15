@@ -144,6 +144,7 @@ type CreateCurrencyDuplicateInvalidFixture struct {
 	CreateCurrency core.CreateCurrencyCommand
 }
 
+// TODO(rh): why does function have ID in its name?
 func CreateCurrencyDuplicateIDInvalidGen() *rapid.Generator[CreateCurrencyDuplicateInvalidFixture] {
 	// Ensure IDs match, but other fields don't. It proves that a conflict error
 	// is triggered specifically by the ID.
@@ -151,6 +152,7 @@ func CreateCurrencyDuplicateIDInvalidGen() *rapid.Generator[CreateCurrencyDuplic
 		base := CreateCurrencyValidGen().Draw(t, "base")
 
 		// Mutate all other fields except ID.
+		// TODO(rh): Maybe only randomly mutate?
 		code := CurrencyCodeGen().
 			Filter(func(c string) bool { return c != base.CreateCurrency.Code }).
 			Draw(t, "code")
@@ -649,6 +651,8 @@ func RemoveExchangeRateFromPolicyGen() *rapid.Generator[RemoveExchangeRateFromPo
 	})
 }
 
+// TierDiscount
+
 func DiscountPercentagesGen() *rapid.Generator[core.DiscountPercentagesInput] {
 	return rapid.Custom(func(t *rapid.T) core.DiscountPercentagesInput {
 		dp := rapid.SliceOfN(
@@ -768,3 +772,7 @@ func CreateTierDiscountDuplicateIDInvalidGen() *rapid.Generator[CreateTierDiscou
 	// })
 	return nil
 }
+
+// UpdateTierDiscountCommand
+// RemoveTierDiscountCommand
+// GetTierDiscountQuery
