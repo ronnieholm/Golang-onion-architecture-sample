@@ -81,3 +81,5 @@ TBD.
 - [.NET Microservices: Architecture for Containerized .NET Applications](https://docs.microsoft.com/en-us/dotnet/architecture/microservices), specifically the chapter on [Tackling Business Complexity in a Microservice with DDD and CQRS Patterns](https://docs.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns).
 - [Zalando API guidelines](https://opensource.zalando.com/restful-api-guidelines).
 - Programming as Theory Building by Peter Naur.
+- [Mat Ryer: How I write HTTP services in Go after 13 years](https://grafana.com/blog/2024/02/09/how-i-write-http-services-in-go-after-13-years).
+- [Go Time: How Mat writes HTTP services in Go](https://www.youtube.com/watch?v=tJ1zvBBkmmY).
