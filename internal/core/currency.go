@@ -330,7 +330,7 @@ func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 
 // Application
 
-type CreateCurrencyCommand struct {
+type CreateCurrencyCommand struct { // TODO(rh): have CreateCurrencyCommand be a Validated struct. Then create NewCreateCurrencyCommand function, making handle function simpler.
 	ID   uuid.UUID
 	Code string
 }
@@ -342,26 +342,26 @@ type CreateCurrencyHandler struct {
 }
 
 func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseCurrencyId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	if errs.HasErrors() {
 		return errs
 	}
 
-	found, err := h.Currencies.ExistByID(ctx, id)
+	exist, err := h.Currencies.ExistByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	if found {
+	if exist {
 		return NewConflictError("Currency", "ID", id.String())
 	}
 
-	found, err = h.Currencies.ExistByCode(ctx, code)
+	exist, err = h.Currencies.ExistByCode(ctx, code)
 	if err != nil {
 		return err // TODO(rh): add context (and other places)
 	}
-	if found {
+	if exist {
 		return NewConflictError("Currency", "Code", code.V())
 	}
 
@@ -373,7 +373,7 @@ type RemoveCurrencyCommand struct {
 	Code string
 }
 
-func (r RemoveCurrencyCommand) Validate(err *RequestParseError) {
+func (r RemoveCurrencyCommand) Validate(err *RequestParserError) {
 }
 
 type RemoveCurrencyHandler struct {
@@ -383,7 +383,7 @@ type RemoveCurrencyHandler struct {
 }
 
 func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	if errs.HasErrors() {
 		return errs
@@ -417,7 +417,7 @@ type AddExchangeRateHandler struct {
 }
 
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
@@ -443,9 +443,9 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 		}
 	}
 
-	now := time.Now()
+	now := h.Clock.NowUTC()
 	exchangeRate := NewExchangeRate(id, rate, from, now)
-	err = currency.AddExchangeRate(exchangeRate, h.Clock.NowUTC())
+	err = currency.AddExchangeRate(exchangeRate, now)
 	if err != nil {
 		return err
 	}
@@ -466,7 +466,7 @@ type UpdateExchangeRateHandler struct {
 }
 
 func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchangeRateCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	rate := Parse(errs, "Rate", req.Rate, ParseRate)
@@ -521,7 +521,7 @@ type RemoveExchangeRateHandler struct {
 }
 
 func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchangeRateCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	if errs.HasErrors() {
@@ -561,7 +561,7 @@ type GetCurrencyHandler struct {
 }
 
 func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
 	if errs.HasErrors() {
 		return nil, errs

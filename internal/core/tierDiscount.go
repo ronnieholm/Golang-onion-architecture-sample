@@ -261,7 +261,7 @@ type CreateTierDiscountHandler struct {
 }
 
 func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDiscountCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.Authorized, dp.Advanced, dp.Premier)
@@ -296,7 +296,7 @@ type UpdateTierDiscountHandler struct {
 }
 
 func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDiscountCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
@@ -331,7 +331,7 @@ type RemoveTierDiscountHandler struct {
 }
 
 func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDiscountCommand) error {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	if errs.HasErrors() {
 		return errs
@@ -360,7 +360,7 @@ type GetTierDiscountHandler struct {
 }
 
 func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQuery) (*TierDiscount, error) {
-	errs := &RequestParseError{}
+	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	if errs.HasErrors() {
 		return nil, errs

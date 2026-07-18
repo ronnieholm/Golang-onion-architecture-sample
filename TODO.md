@@ -27,3 +27,4 @@
      else:
         transaction.rollback() # Clean up as usual
 - Does it make sense with background noise in prop tests when you also have state machine tests
+- Write a code generator similar to C# vogen

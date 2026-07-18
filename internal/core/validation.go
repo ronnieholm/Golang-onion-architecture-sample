@@ -8,23 +8,23 @@ import (
 	"github.com/google/uuid"
 )
 
-type RequestParseError struct {
+type RequestParserError struct {
 	FieldErrors map[string][]string
 }
 
-func (e *RequestParseError) Add(key, error string) {
+func (e *RequestParserError) Add(field, error string) {
 	// Allocate the map here so allocation happens only on the error path.
 	if e.FieldErrors == nil {
 		e.FieldErrors = make(map[string][]string)
 	}
-	e.FieldErrors[key] = append(e.FieldErrors[key], error)
+	e.FieldErrors[field] = append(e.FieldErrors[field], error)
 }
 
-func (e *RequestParseError) HasErrors() bool {
+func (e *RequestParserError) HasErrors() bool {
 	return len(e.FieldErrors) > 0
 }
 
-func (e *RequestParseError) Error() string {
+func (e *RequestParserError) Error() string {
 	if !e.HasErrors() {
 		return ""
 	}

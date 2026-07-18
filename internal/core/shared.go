@@ -235,8 +235,9 @@ func (e *FieldParseError) NilOrError() error {
 	return e
 }
 
-// Parse, don't validate mantra
-func Parse[In any, Out any](e *RequestParseError, field string, val In, fn func(In) (Out, error)) Out {
+// TODO(rh): Can this be a member of RequestParseError now Go support method generics? Then RequestParseError can become private.
+// Parse, don't validate mantra.
+func Parse[In any, Out any](e *RequestParserError, field string, val In, fn func(In) (Out, error)) Out {
 	res, err := fn(val)
 	if err != nil {
 		if errs2, ok := err.(*FieldParseError); ok {
