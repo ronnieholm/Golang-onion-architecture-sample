@@ -116,7 +116,7 @@ type Rate struct { // TODO(rh): call ExchangeRateRate?
 	v float64
 }
 
-func (r Rate) V() float64 { return r.v }
+func (r Rate) V() float64 { return r.v } // TODO(rh): why does this type no have a string "override" like the others?
 
 func ParseRate(v float64) (Rate, error) { // TODO(rh): Idiomatic to call it ParseRate?
 	errs := &FieldParseError{}

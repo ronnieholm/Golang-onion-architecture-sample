@@ -235,11 +235,13 @@ func (e *FieldParseError) NilOrError() error {
 	return e
 }
 
-// TODO(rh): Can this be a member of RequestParseError now Go support method generics? Then RequestParseError can become private.
+// TODO(rh): Can this be a member of RequestParseError now Go support method generics? Then RequestParseError can become private. Part of Go 1.27 to be released in Aug 2026. Preview available.
 // Parse, don't validate mantra.
 func Parse[In any, Out any](e *RequestParserError, field string, val In, fn func(In) (Out, error)) Out {
 	res, err := fn(val)
 	if err != nil {
+		// TOOD(rh): include field name in FieldParseError or consumer will have a hard time relating multiple errors to fields. Have Parse
+		// append field + "." + FieldParseError.Field if field is set.
 		if errs2, ok := err.(*FieldParseError); ok {
 			// When parsing a value object may lead to zero or many errors.
 			for _, msg := range errs2.Messages {
