@@ -6,8 +6,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/ronnieholm/resellerloyalty/internal/build"
@@ -42,5 +44,27 @@ func main() {
 	_, err = dispatcher.CreateCurrency(ctx, cmd)
 	if err != nil {
 		log.Fatalf("Create currency: %s", err)
+	}
+}
+
+func MapErrorToHTTP(err error) (int, string) {
+	var conflict *core.ConflictError
+	var notFound *core.NotFoundError
+	var domainErr *core.DomainError
+
+	switch {
+	case errors.As(err, &conflict):
+		return http.StatusConflict, conflict.Error()
+
+	case errors.As(err, &notFound):
+		return http.StatusNotFound, notFound.Error()
+
+	case errors.As(err, &domainErr):
+		// Generic domain rule violation fallback
+		return http.StatusUnprocessableEntity, domainErr.Error()
+
+	default:
+		// Internal server errors / infrastructure issues should never leak details
+		return http.StatusInternalServerError, "an unexpected error occurred"
 	}
 }
