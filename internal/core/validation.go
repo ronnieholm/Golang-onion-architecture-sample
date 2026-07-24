@@ -8,6 +8,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// RequestParserError collects errors from command and query requests. The
+// request is a set of fields where a single field may fail multiple
+// validations. For instance, a password may fail multiple of minimum length,
+// upper case character, lower case character, and digit at the same time.
+//
+// The error is intended for human and machine consumption. If the caller is a
+// web client, the error must enable the caller to correlate form fields to
+// request fields to validation errors so errors can be shown next to UI
+// elements.
 type RequestParserError struct {
 	FieldErrors map[string][]string
 }

@@ -89,6 +89,7 @@ func (c DiscountPercentages) Advanced() float64   { return c.advanced }
 func (c DiscountPercentages) Premier() float64    { return c.premier }
 
 func ParseDiscountPercentages(authorized, advanced, premier float64) (DiscountPercentages, error) {
+	// A compound value type may report multiple validation errors per field.
 	errs := &FieldParseError{}
 	if err := ValidateFloat64InclusiveRange(authorized, TierDiscountPercentageMin, TierDiscountPercentageMax); err != nil {
 		errs.Add(err.Error()) // TODO(rh): field name would be missing from error.
@@ -109,11 +110,11 @@ func ParseDiscountPercentages(authorized, advanced, premier float64) (DiscountPe
 		errs.Add(err.Error())
 	}
 	if authorized > advanced {
-		message := fmt.Sprintf("Must be between 0 and %g inclusive, but was %g", advanced, authorized)
+		message := fmt.Sprintf("Authorized %g must be less than or equal to Advanced %g", authorized, advanced)
 		errs.Add(message)
 	}
 	if advanced > premier {
-		message := fmt.Sprintf("Must be between %g and %g inclusive, but was %g", authorized, premier, advanced)
+		message := fmt.Sprintf("Advanced %g must be less than or equal to Premier %g", advanced, premier)
 		errs.Add(message)
 	}
 	if err := errs.NilOrError(); err != nil {
@@ -264,6 +265,8 @@ func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDis
 	errs := &RequestParserError{}
 	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
 	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
+		// TODO(rh): ParseDiscountPercentages should return RequestParserError, but with 0, 1, 2 as key name. Here we translate 0 to "Percentages.Authorized".
+		//           Parsers calling each other recursively with outer ones patching up the path?
 		return ParseDiscountPercentages(dp.Authorized, dp.Advanced, dp.Premier)
 	})
 	from := Parse(errs, "From", req.From, ParseTierDiscountFrom)

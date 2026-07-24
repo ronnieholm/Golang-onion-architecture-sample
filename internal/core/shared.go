@@ -216,6 +216,13 @@ type StoreProjector interface {
 	Apply(context.Context, ...Aggregate) error
 }
 
+// TODO(rh): Instead of FieldParseError, use existing RequestParserError. If key
+// is nil, Parse function should assume field was what's passed to Parse. For
+// multiple fields, such as DiscountPercentage compound value object, key would
+// be the three field names. The assumption being whenever in a request the
+// discounts are present, they're always named the same as field names are hard-
+// code in the parser. It would be more elegant if it weren't so because now
+// Parse is passed field name for simple value objects.
 type FieldParseError struct {
 	Messages []string
 }

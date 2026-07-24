@@ -235,6 +235,15 @@ func (e *Currency) Equal(other *Currency) bool {
 }
 
 func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Time) error {
+	for _, e := range c.ExchangeRates {
+		if e.ID == exchangeRate.ID {
+			return NewConflictError("ExchangeRate", "ID", exchangeRate.ID.String())
+		}
+		if e.From == exchangeRate.From {
+			return NewConflictError("ExchangeRate", "From", exchangeRate.From.String())
+		}
+	}
+
 	today := DateFromTime(createdAt)
 	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
@@ -255,7 +264,26 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 	return nil
 }
 
-func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from ExchangeRateFrom, updatedAt time.Time) error {
+func (c *Currency) UpdateExchangeRate(exchangeRateId ExchangeRateID, rate Rate, from ExchangeRateFrom, updatedAt time.Time) error {
+	var (
+		exchangeRateByID   *ExchangeRate
+		exchangeRateByFrom *ExchangeRate
+	)
+	for _, e := range c.ExchangeRates {
+		if e.ID == exchangeRateId.V() {
+			exchangeRateByID = e
+		}
+		if e.From.V() == from.V() {
+			exchangeRateByFrom = e
+		}
+	}
+	if exchangeRateByID == nil {
+		return NewNotFoundError("ExchangeRate", "ID", exchangeRateId.String())
+	}
+	if exchangeRateByFrom != nil && exchangeRateByFrom.ID != exchangeRateId.V() {
+		return NewConflictError("ExchangeRate", "From", from.String())
+	}
+
 	// TODO(rh): move check to ExchangeRate entity? Similar for other methods.
 	today := DateFromTime(updatedAt)
 	if !from.V().After(today) {
@@ -264,7 +292,7 @@ func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from
 			fmt.Sprintf("update exchange rate requires from %s be after today %s", from, today.String()))
 	}
 
-	if err := exchangeRate.Update(rate, from, updatedAt); err != nil {
+	if err := exchangeRateByID.Update(rate, from, updatedAt); err != nil {
 		return fmt.Errorf("currency update exchange rate: %w", err)
 	}
 
@@ -273,14 +301,24 @@ func (c *Currency) UpdateExchangeRate(exchangeRate ExchangeRate, rate Rate, from
 			OccurredAt: updatedAt,
 		},
 		CurrencyID:     c.ID,
-		ExchangeRateID: exchangeRate.ID,
-		Rate:           exchangeRate.Rate.V(),
-		From:           exchangeRate.From.V(),
+		ExchangeRateID: exchangeRateByID.ID,
+		Rate:           exchangeRateByID.Rate.V(),
+		From:           exchangeRateByID.From.V(),
 	})
 	return nil
 }
 
-func (c *Currency) RemoveExchangeRate(exchangeRate *ExchangeRate, updatedAt time.Time) error {
+func (c *Currency) RemoveExchangeRate(exchangeRateID ExchangeRateID, updatedAt time.Time) error {
+	var exchangeRate *ExchangeRate
+	for _, e := range c.ExchangeRates {
+		if e.ID == exchangeRateID.V() {
+			exchangeRate = e
+		}
+	}
+	if exchangeRate == nil {
+		return NewNotFoundError("ExchangeRate", "ID", exchangeRateID.String())
+	}
+
 	today := DateFromTime(updatedAt)
 	if !exchangeRate.From.V().After(today) {
 		return NewDomainError(
@@ -314,7 +352,7 @@ func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 	}
 
 	for i := len(c.ExchangeRates) - 1; i >= 0; i-- {
-		if err := c.RemoveExchangeRate(c.ExchangeRates[i], removeAt); err != nil {
+		if err := c.RemoveExchangeRate(MustParseExchangeRateId(c.ExchangeRates[i].ID), removeAt); err != nil {
 			return fmt.Errorf("remove currency: %w", err)
 		}
 	}
@@ -434,15 +472,6 @@ func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateC
 		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
-	for _, e := range currency.ExchangeRates {
-		if e.ID == req.ID {
-			return NewConflictError("ExchangeRate", "ID", id.String())
-		}
-		if e.From.V() == req.From {
-			return NewConflictError("ExchangeRate", "From", from.String())
-		}
-	}
-
 	now := h.Clock.NowUTC()
 	exchangeRate := NewExchangeRate(id, rate, from, now)
 	err = currency.AddExchangeRate(exchangeRate, now)
@@ -483,27 +512,7 @@ func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchang
 		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
-	var (
-		exchangeRateByID   *ExchangeRate
-		exchangeRateByFrom *ExchangeRate
-	)
-	for _, e := range currency.ExchangeRates {
-		if e.ID == req.ID {
-			exchangeRateByID = e
-		}
-		if e.From.V().Equal(req.From) {
-			exchangeRateByFrom = e
-		}
-	}
-	if exchangeRateByID == nil {
-		return NewNotFoundError("ExchangeRate", "ID", id.String())
-	}
-	if exchangeRateByFrom != nil && exchangeRateByFrom.ID != req.ID {
-		return NewConflictError("ExchangeRate", "From", from.String())
-	}
-
-	// TODO(rh): why *exchangeRateByID and not exchangeRateByID to minimize copying? Is exchangeRate large enough to avoid copying? Over 64 bytes.
-	if err := currency.UpdateExchangeRate(*exchangeRateByID, rate, from, h.Clock.NowUTC()); err != nil {
+	if err := currency.UpdateExchangeRate(id, rate, from, h.Clock.NowUTC()); err != nil {
 		return err
 	}
 	return h.Projector.Apply(ctx, currency)
@@ -536,17 +545,7 @@ func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchang
 		return NewNotFoundError("Currency", "Code", code.V())
 	}
 
-	var exchangeRate *ExchangeRate
-	for _, e := range currency.ExchangeRates {
-		if e.ID == req.ID {
-			exchangeRate = e
-		}
-	}
-	if exchangeRate == nil {
-		return NewNotFoundError("ExchangeRate", "ID", id.String())
-	}
-
-	if err := currency.RemoveExchangeRate(exchangeRate, h.Clock.NowUTC()); err != nil {
+	if err := currency.RemoveExchangeRate(id, h.Clock.NowUTC()); err != nil {
 		return err
 	}
 	return h.Projector.Apply(ctx, currency)
