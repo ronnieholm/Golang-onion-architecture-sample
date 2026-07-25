@@ -112,13 +112,13 @@ func MustParseExchangeRateId(v uuid.UUID) ExchangeRateID {
 	return v1
 }
 
-type Rate struct { // TODO(rh): call ExchangeRateRate?
+type Rate struct {
 	v float64
 }
 
-func (r Rate) V() float64 { return r.v } // TODO(rh): why does this type no have a string "override" like the others?
+func (r Rate) V() float64 { return r.v }
 
-func ParseRate(v float64) (Rate, error) { // TODO(rh): Idiomatic to call it ParseRate?
+func ParseRate(v float64) (Rate, error) {
 	errs := &FieldParseError{}
 	if err := ValidateFloat64InclusiveRange(v, ExchangeRateMin, ExchangeRateMax); err != nil {
 		errs.Add(err.Error())
@@ -176,7 +176,7 @@ type ExchangeRate struct {
 func NewExchangeRate(id ExchangeRateID, rate Rate, from ExchangeRateFrom, createdAt time.Time) ExchangeRate {
 	return ExchangeRate{
 		Entity: Entity{
-			ID:        id.V(), // TODO(rh): fix
+			ID:        id.V(),
 			CreatedAt: createdAt,
 			UpdatedAt: nil,
 		},
@@ -186,6 +186,13 @@ func NewExchangeRate(id ExchangeRateID, rate Rate, from ExchangeRateFrom, create
 }
 
 func (e *ExchangeRate) Update(rate Rate, from ExchangeRateFrom, updatedAt time.Time) error {
+	today := DateFromTime(updatedAt)
+	if !from.V().After(today) {
+		return NewDomainError(
+			CurrencyUpdateRequiresFutureFrom,
+			fmt.Sprintf("update exchange rate requires from %s be after today %s", from, today.String()))
+	}
+
 	if e.Rate == rate && e.From == from {
 		return NewDomainError(
 			CurrencyUpdateRequiresChange,
@@ -212,7 +219,7 @@ func NewCurrency(id CurrencyID, code CurrencyCode, createdAt time.Time) Currency
 	c := Currency{
 		AggregateRoot: AggregateRoot{
 			Entity: Entity{
-				ID:        id.V(), // TOOD(rh): Fix by making entity generic.
+				ID:        id.V(),
 				CreatedAt: createdAt,
 			},
 		},
@@ -284,14 +291,6 @@ func (c *Currency) UpdateExchangeRate(exchangeRateId ExchangeRateID, rate Rate, 
 		return NewConflictError("ExchangeRate", "From", from.String())
 	}
 
-	// TODO(rh): move check to ExchangeRate entity? Similar for other methods.
-	today := DateFromTime(updatedAt)
-	if !from.V().After(today) {
-		return NewDomainError(
-			CurrencyUpdateRequiresFutureFrom,
-			fmt.Sprintf("update exchange rate requires from %s be after today %s", from, today.String()))
-	}
-
 	if err := exchangeRateByID.Update(rate, from, updatedAt); err != nil {
 		return fmt.Errorf("currency update exchange rate: %w", err)
 	}
@@ -343,7 +342,7 @@ func (c *Currency) RemoveExchangeRate(exchangeRateID ExchangeRateID, updatedAt t
 func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 	today := DateFromTime(removeAt)
 	canRemove := !slices.ContainsFunc(c.ExchangeRates, func(e *ExchangeRate) bool {
-		return e.From.V().Compare(today) <= 0 // TODO(rh): use !e.From.Ater(today) which is simpler to read.
+		return !e.From.V().After(today)
 	})
 	if !canRemove {
 		return NewDomainError(
@@ -368,7 +367,7 @@ func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 
 // Application
 
-type CreateCurrencyCommand struct { // TODO(rh): have CreateCurrencyCommand be a Validated struct. Then create NewCreateCurrencyCommand function, making handle function simpler.
+type CreateCurrencyCommand struct {
 	ID   uuid.UUID
 	Code string
 }

@@ -144,8 +144,7 @@ type CreateCurrencyDuplicateInvalidFixture struct {
 	CreateCurrency core.CreateCurrencyCommand
 }
 
-// TODO(rh): why does function have ID in its name?
-func CreateCurrencyDuplicateIDInvalidGen() *rapid.Generator[CreateCurrencyDuplicateInvalidFixture] {
+func CreateCurrencyDuplicateInvalidGen() *rapid.Generator[CreateCurrencyDuplicateInvalidFixture] {
 	// Ensure IDs match, but other fields don't. It proves that a conflict error
 	// is triggered specifically by the ID.
 	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateInvalidFixture {
