@@ -64,7 +64,7 @@ func (td *CurrencyTests) TestCreateCurrencyValid() {
 func (td *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
-		fx := CreateCurrencyDuplicateIDInvalidGen().Draw(t, "fx")
+		fx := CreateCurrencyDuplicateInvalidGen().Draw(t, "fx")
 		td.setupCurrency(t, fx.Base)
 		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.Base.CreateCurrency)
 		require.NoError(t, err)

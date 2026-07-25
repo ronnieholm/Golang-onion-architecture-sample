@@ -243,7 +243,7 @@ func (e *FieldParseError) NilOrError() error {
 }
 
 // TODO(rh): Can this be a member of RequestParseError now Go support method generics? Then RequestParseError can become private. Part of Go 1.27 to be released in Aug 2026. Preview available.
-// Parse, don't validate mantra.
+// Parse, don't validate pattern.
 func Parse[In any, Out any](e *RequestParserError, field string, val In, fn func(In) (Out, error)) Out {
 	res, err := fn(val)
 	if err != nil {
