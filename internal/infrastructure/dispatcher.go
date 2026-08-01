@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"time"
@@ -31,22 +32,22 @@ type Handler[Req any, Res any] func(context.Context, Req) (Res, error)
 // success path.
 type Empty struct{}
 
-func WithTiming[Req any, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
+func WithTiming[Req any, Res any](next Handler[Req, Res]) Handler[Req, Res] {
 	return func(ctx context.Context, r Req) (Res, error) {
 		start := time.Now()
 
 		// Using defer ensures code runs even if next panics.
 		defer func() {
-			// TODO(rh): use slog.
-			log.Printf("WithTiming: %s %v", name, time.Since(start))
+			log.Printf("WithTiming: %T %v", r, time.Since(start)) // TODO(rh): core.GetCurrencyQuery -> GetCurrencyQuery
 		}()
 
 		return next(ctx, r)
 	}
 }
 
-func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[Req, Res] {
+func WithLogging[Req any, Res any](next Handler[Req, Res]) Handler[Req, Res] {
 	return func(ctx context.Context, r Req) (res Res, err error) {
+		t := fmt.Sprintf("%T", r)
 		defer func() {
 			// For a PII sensitive service, rather than logging every field,
 			// identify by name or type a request that requires cleaning. Then
@@ -54,7 +55,7 @@ func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[
 
 			if rec := recover(); rec != nil {
 				slog.ErrorContext(ctx, "handler panicked",
-					slog.String("handler", name),
+					slog.String("handler", t),
 					slog.Any("panic", rec),
 					// Beware that adding struct tags such as json:"..." to a
 					// request is deliberately ignored by slog. For performance
@@ -67,7 +68,7 @@ func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[
 			}
 
 			attrs := []any{
-				slog.String("handler", name),
+				slog.String("handler", t),
 				slog.Any("request", r),
 			}
 
@@ -83,15 +84,13 @@ func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[
 	}
 }
 
-// TODO(rh): Do we really need the name argument for decorate? Can withLogging and withTimeing not extract the name of the request from the type paramters?
-
 // Decorate avoids repeating the common chain of decorators for every handler.
-func Decorate[Req any, Res any](name string, h func(context.Context, Req) (Res, error)) Handler[Req, Res] {
+func Decorate[Req any, Res any](h func(context.Context, Req) (Res, error)) Handler[Req, Res] {
 	handler := Handler[Req, Res](h)
 
 	// Apply decorators in order, innermost to outermost.
-	handler = WithLogging(name, handler)
-	handler = WithTiming(name, handler)
+	handler = WithLogging(handler)
+	handler = WithTiming(handler)
 	return handler
 }
 
@@ -252,34 +251,34 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 		// patch the signature as below. To avoid polluting core, (2) is chosen.
 
 		// Currency
-		CreateCurrency: Decorate("CreateCurrency", func(ctx context.Context, req core.CreateCurrencyCommand) (Empty, error) {
+		CreateCurrency: Decorate(func(ctx context.Context, req core.CreateCurrencyCommand) (Empty, error) {
 			return Empty{}, createCurrency.Handle(ctx, req)
 		}),
-		RemoveCurrency: Decorate("RemoveCurrency", func(ctx context.Context, req core.RemoveCurrencyCommand) (Empty, error) {
+		RemoveCurrency: Decorate(func(ctx context.Context, req core.RemoveCurrencyCommand) (Empty, error) {
 			return Empty{}, removeCurrency.Handle(ctx, req)
 		}),
-		AddExchangeRate: Decorate("AddExchangeRate", func(ctx context.Context, req core.AddExchangeRateCommand) (Empty, error) {
+		AddExchangeRate: Decorate(func(ctx context.Context, req core.AddExchangeRateCommand) (Empty, error) {
 			return Empty{}, addExchangeRate.Handle(ctx, req)
 		}),
-		UpdateExchangeRate: Decorate("UpdateExchangeRate", func(ctx context.Context, req core.UpdateExchangeRateCommand) (Empty, error) {
+		UpdateExchangeRate: Decorate(func(ctx context.Context, req core.UpdateExchangeRateCommand) (Empty, error) {
 			return Empty{}, updateExchangeRate.Handle(ctx, req)
 		}),
-		RemoveExchangeRate: Decorate("RemoveExchangeRate", func(ctx context.Context, req core.RemoveExchangeRateCommand) (Empty, error) {
+		RemoveExchangeRate: Decorate(func(ctx context.Context, req core.RemoveExchangeRateCommand) (Empty, error) {
 			return Empty{}, removeExchangeRate.Handle(ctx, req)
 		}),
-		GetCurrency: Decorate("GetCurrecy", getCurrency.Handle),
+		GetCurrency: Decorate(getCurrency.Handle),
 
 		// TierDiscount
-		CreateTierDiscount: Decorate("CreateTierDiscount", func(ctx context.Context, req core.CreateTierDiscountCommand) (Empty, error) {
+		CreateTierDiscount: Decorate(func(ctx context.Context, req core.CreateTierDiscountCommand) (Empty, error) {
 			return Empty{}, createTierDiscount.Handle(ctx, req)
 		}),
-		RemoveTierDiscount: Decorate("RemoveTierDiscount", func(ctx context.Context, req core.RemoveTierDiscountCommand) (Empty, error) {
+		RemoveTierDiscount: Decorate(func(ctx context.Context, req core.RemoveTierDiscountCommand) (Empty, error) {
 			return Empty{}, removeTierDiscount.Handle(ctx, req)
 		}),
-		UpdateTierDiscount: Decorate("UpdateTierDiscount", func(ctx context.Context, req core.UpdateTierDiscountCommand) (Empty, error) {
+		UpdateTierDiscount: Decorate(func(ctx context.Context, req core.UpdateTierDiscountCommand) (Empty, error) {
 			return Empty{}, updateTierDiscount.Handle(ctx, req)
 		}),
-		GetTierDiscount: Decorate("GetTierDiscount", getTierDiscount.Handle),
+		GetTierDiscount: Decorate(getTierDiscount.Handle),
 	}
 }
 
