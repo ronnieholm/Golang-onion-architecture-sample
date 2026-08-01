@@ -13,7 +13,7 @@ import (
 
 // Dispatcher is in infrastructure rather than core or it would need to be
 // passed concrete interface implementation for core to remain technology
-// agnostic. Static depedencies could be passed directly, but non-static ones
+// agnostic. Static dependencies could be passed directly, but non-static ones
 // would have to be passed as funcs for Dispatcher to instantiate those on
 // demand. Also, pgxpool.Pool, and possibly others in a large app, isn't
 // interface based. Putting it behind an interface and adding funcs is overkill.
@@ -82,6 +82,8 @@ func WithLogging[Req any, Res any](name string, next Handler[Req, Res]) Handler[
 		return next(ctx, r)
 	}
 }
+
+// TODO(rh): Do we really need the name argument for decorate? Can withLogging and withTimeing not extract the name of the request from the type paramters?
 
 // Decorate avoids repeating the common chain of decorators for every handler.
 func Decorate[Req any, Res any](name string, h func(context.Context, Req) (Res, error)) Handler[Req, Res] {
@@ -188,7 +190,7 @@ func NewDispatcher(ctx context.Context, config Config, opts ...DispatcherOption)
 	// construction.
 	//
 	// It follows that any static dependency used to construct a handler must be
-	// thread-safe. Non-static depedencies should be passed through the Handle
+	// thread-safe. Non-static dependencies should be passed through the Handle
 	// method, and depending on their nature may also have to be thread-safe.
 
 	// Currency
