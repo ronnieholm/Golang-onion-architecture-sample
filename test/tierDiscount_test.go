@@ -34,19 +34,11 @@ func (td *TierDiscountTests) cleanUp() {
 	resetDB(td.ctx, td.dispatcher.PgxPool)
 }
 
-func (td *TierDiscountTests) setupTierDiscount(t *rapid.T, fx CreateTierDiscountValidFixture) {
-	td.clock.Current = fx.Clock
-	for _, cmd := range fx.Noise {
-		_, err := td.dispatcher.CreateTierDiscount(td.ctx, cmd)
-		require.NoError(t, err, "Failed on ID %s", cmd.ID.String())
-	}
-}
-
 func (td *TierDiscountTests) TestCreateTierDiscountValid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
 		fx := CreateTierDiscountValidGen().Draw(t, "fx")
-		td.setupTierDiscount(t, fx)
+		td.clock.Current = fx.Clock
 
 		_, err := td.dispatcher.CreateTierDiscount(td.ctx, fx.CreateTierDiscount)
 		require.NoError(t, err)

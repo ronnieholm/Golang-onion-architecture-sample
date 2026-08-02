@@ -35,19 +35,11 @@ func (td *CurrencyTests) cleanUp() {
 	resetDB(td.ctx, td.dispatcher.PgxPool)
 }
 
-func (td *CurrencyTests) setupCurrency(t *rapid.T, fx CreateCurrencyValidFixture) {
-	td.clock.Current = fx.Clock
-	for _, cmd := range fx.Noise {
-		_, err := td.dispatcher.CreateCurrency(td.ctx, cmd)
-		require.NoError(t, err, "Failed on ID %s", cmd.ID.String())
-	}
-}
-
 func (td *CurrencyTests) TestCreateCurrencyValid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
 		fx := CreateCurrencyValidGen().Draw(t, "fx")
-		td.setupCurrency(t, fx)
+		td.clock.Current = fx.Clock
 
 		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.CreateCurrency)
 		require.NoError(t, err)
@@ -65,7 +57,7 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
 		fx := CreateCurrencyDuplicateInvalidGen().Draw(t, "fx")
-		td.setupCurrency(t, fx.Base)
+		td.clock.Current = fx.Base.Clock
 		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.Base.CreateCurrency)
 		require.NoError(t, err)
 
@@ -82,7 +74,7 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateCodeInvalid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
 		fx := CreateCurrencyDuplicateCodeInvalidGen().Draw(t, "fx")
-		td.setupCurrency(t, fx.Base)
+		td.clock.Current = fx.Base.Clock
 		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.Base.CreateCurrency)
 		require.NoError(t, err)
 

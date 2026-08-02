@@ -102,7 +102,6 @@ func CreateCurrencyCommandGen() *rapid.Generator[core.CreateCurrencyCommand] {
 
 type CreateCurrencyValidFixture struct {
 	Clock          core.Clock
-	Noise          []core.CreateCurrencyCommand
 	CreateCurrency core.CreateCurrencyCommand
 	GetCurrecy     core.GetCurrencyQuery
 }
@@ -116,13 +115,6 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 			func(s string) any { return s },
 		).Draw(t, "codes")
 
-		noise := make([]core.CreateCurrencyCommand, len(codes)-1)
-		for i := 0; i < len(codes)-1; i++ {
-			c := CreateCurrencyCommandGen().Draw(t, fmt.Sprintf("noise_%d", i))
-			c.Code = codes[i]
-			noise[i] = c
-		}
-
 		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
 		create.Code = codes[len(codes)-1]
 
@@ -132,7 +124,6 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 
 		return CreateCurrencyValidFixture{
 			Clock:          clock,
-			Noise:          noise,
 			CreateCurrency: create,
 			GetCurrecy:     get,
 		}
@@ -706,7 +697,6 @@ func CreateTierDiscountCommandGen() *rapid.Generator[core.CreateTierDiscountComm
 
 type CreateTierDiscountValidFixture struct {
 	Clock              core.Clock
-	Noise              []core.CreateTierDiscountCommand
 	CreateTierDiscount core.CreateTierDiscountCommand
 	GetTierDiscount    core.GetTierDiscountQuery
 }
@@ -720,12 +710,6 @@ func CreateTierDiscountValidGen() *rapid.Generator[CreateTierDiscountValidFixtur
 			func(d core.Date) any { return d },
 		).Draw(t, "unique_dates")
 
-		noise := make([]core.CreateTierDiscountCommand, len(uniqueDates)-1)
-		for i := 0; i < len(uniqueDates)-1; i++ {
-			noise[i] = CreateTierDiscountCommandGen().Draw(t, fmt.Sprintf("noise_%d", i))
-			noise[i].From = uniqueDates[i]
-		}
-
 		create := CreateTierDiscountCommandGen().Draw(t, "create")
 		create.From = uniqueDates[len(uniqueDates)-1]
 
@@ -735,7 +719,6 @@ func CreateTierDiscountValidGen() *rapid.Generator[CreateTierDiscountValidFixtur
 
 		return CreateTierDiscountValidFixture{
 			Clock:              clock,
-			Noise:              noise,
 			CreateTierDiscount: create,
 			GetTierDiscount:    get,
 		}
