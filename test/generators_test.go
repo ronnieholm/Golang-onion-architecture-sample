@@ -233,7 +233,7 @@ func AddExchangeRateUniqueFromValidGen() *rapid.Generator[AddExchangeRateUniqueF
 		// Separate arrange from assert part by separate collections. The slice
 		// representation stays true to date generation order and simplifies
 		// drawing an item from the slice in consuming generators. The map
-		// representation avoids an O(n) lookup per item in during assert.
+		// representation avoids an O(n) lookup per item during assert.
 		adds := make([]core.AddExchangeRateCommand, len(uniqueDates))
 		expected := make(map[uuid.UUID]core.AddExchangeRateCommand, len(uniqueDates))
 		for i, date := range uniqueDates {

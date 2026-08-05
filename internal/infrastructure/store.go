@@ -89,7 +89,7 @@ func (cs PgCurrencyStore) ExistByCode(ctx context.Context, code core.CurrencyCod
 }
 
 func (cs PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*core.Currency {
-	currencies := map[uuid.UUID]*core.Currency{}
+	currencies := map[uuid.UUID]*core.Currency{} // TODO(rh): Beware order isn't preserved.
 	for _, c := range flat {
 		c2, ok := currencies[c.CID]
 		if !ok {
@@ -99,7 +99,7 @@ func (cs PgCurrencyStore) mapCurrencies(flat []*currencyFlat) map[uuid.UUID]*cor
 		}
 
 		// For non-leafs, we have to maintain an identity map to avoid
-		// duplicates. But Exchange rate ID being a leave makes it unique.
+		// duplicates. But Exchange rate ID being a leaf makes it unique.
 		e2 := c.exchangeRate()
 		if e2 != nil {
 			c2.ExchangeRates = append(c2.ExchangeRates, e2)
@@ -211,11 +211,8 @@ type PgStoreProjector struct {
 
 func (sp PgStoreProjector) withTx(ctx context.Context, fn func(pgx.Tx) error) (err error) {
 	// While pgx batching may be more efficient, don't use it as it makes
-	// troubleshooting which query failed more difficult and also comes with
-	//
-	// If transactional cross-repository Save is ever needed, instead of each
-	// repository's Save method creating a transaction, pass in a transaction.
-	// Alternatively, create a single Save method spanning all repositories.
+	// troubleshooting which query failed more difficult and may fail on too
+	// large batch size.
 	tx, err := sp.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to begin tx: %w", err)

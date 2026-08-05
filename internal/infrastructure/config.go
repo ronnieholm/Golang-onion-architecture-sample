@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	DBUrl                string `mapstructure:"db_url"`
-	DailyTieringSchedule string `mapstructure:"daily_tiering_schedule"`
+	DailyTieringSchedule string `mapstructure:"daily_tiering_schedule"` // TODO(rh): make DailyTiering a subsection similar to OutboxProcessor.
 	OutboxProcessor      struct {
 		BatchSize uint64 `mapstructure:"batch_size"`
 		Schedule  string `mapstructure:"schedule"`

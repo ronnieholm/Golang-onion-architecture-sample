@@ -24,6 +24,7 @@ func loadConfig() *infrastructure.Config {
 	return config
 }
 
+// TODO(rh): any benefit in batching delete statements?
 // DELETE statements must come in reverse dependency order.
 var sql = []string{
 	"DELETE FROM domain_event",

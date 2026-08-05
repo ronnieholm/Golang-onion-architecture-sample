@@ -12,6 +12,9 @@ import (
 	"pgregory.net/rapid"
 )
 
+// Assume system fields CreatedAt, UpdatedAt, Version are correct and focus
+// testing on the domain.
+
 type CurrencyTests struct {
 	suite.Suite
 	ctx        context.Context
@@ -48,8 +51,6 @@ func (td *CurrencyTests) TestCreateCurrencyValid() {
 		require.NoError(t, err)
 		assert.Equal(t, fx.CreateCurrency.ID, c.ID)
 		assert.Equal(t, fx.CreateCurrency.Code, c.Code.V())
-		// Assume system fields such as CreatedAt, UpdatedAt, Version are
-		// correct and focus on the domain.
 	})
 }
 
