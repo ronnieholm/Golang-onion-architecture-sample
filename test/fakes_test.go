@@ -1,4 +1,4 @@
-package currency_test
+package test
 
 import (
 	"fmt"
