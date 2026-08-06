@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/ronnieholm/resellerloyalty/internal/core"
 	"pgregory.net/rapid"
 )

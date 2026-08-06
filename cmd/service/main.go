@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/ronnieholm/resellerloyalty/internal/build"
 	"github.com/ronnieholm/resellerloyalty/internal/core"
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"

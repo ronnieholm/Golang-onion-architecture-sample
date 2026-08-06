@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,28 +36,22 @@ type currencyFlat struct {
 
 func (c currencyFlat) currency() *core.Currency {
 	return &core.Currency{
-		AggregateRoot: core.AggregateRoot{
-			Version: c.CVersion,
-			Entity: core.Entity{
-				ID:        c.CID,
-				CreatedAt: c.CCreatedAt,
-				UpdatedAt: c.CUpdatedAt,
-			},
-		},
-		Code: core.MustParseCurrencyCode(c.CCode),
+		Version:   c.CVersion,
+		ID:        c.CID,
+		CreatedAt: c.CCreatedAt,
+		UpdatedAt: c.CUpdatedAt,
+		Code:      core.MustParseCurrencyCode(c.CCode),
 	}
 }
 
 func (c currencyFlat) exchangeRate() *core.ExchangeRate {
 	if c.EID != nil {
 		return &core.ExchangeRate{
-			Entity: core.Entity{
-				ID:        *c.EID,
-				CreatedAt: *c.ECreatedAt,
-				UpdatedAt: c.EUpdatedAt,
-			},
-			Rate: core.MustParseRate(*c.ERate),
-			From: core.MustParseExchangeRateFrom(*c.EFrom),
+			ID:        *c.EID,
+			CreatedAt: *c.ECreatedAt,
+			UpdatedAt: c.EUpdatedAt,
+			Rate:      core.MustParseRate(*c.ERate),
+			From:      core.MustParseExchangeRateFrom(*c.EFrom),
 		}
 	} else {
 		return nil
@@ -146,14 +140,10 @@ type tierDiscountFlat struct {
 
 func (td tierDiscountFlat) tierDiscount() *core.TierDiscount {
 	return &core.TierDiscount{
-		AggregateRoot: core.AggregateRoot{
-			Version: td.Version,
-			Entity: core.Entity{
-				ID:        td.ID,
-				CreatedAt: td.CreatedAt,
-				UpdatedAt: td.UpdatedAt,
-			},
-		},
+		Version:   td.Version,
+		ID:        td.ID,
+		CreatedAt: td.CreatedAt,
+		UpdatedAt: td.UpdatedAt,
 		Percentages: core.MustParseDiscountPercentages(
 			td.Authorized,
 			td.Advanced,

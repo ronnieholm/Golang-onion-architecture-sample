@@ -2,8 +2,7 @@ package core
 
 import (
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type ProductRepository interface {

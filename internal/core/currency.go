@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Domain
@@ -175,13 +174,11 @@ type ExchangeRate struct {
 
 func NewExchangeRate(id ExchangeRateID, rate Rate, from ExchangeRateFrom, createdAt time.Time) ExchangeRate {
 	return ExchangeRate{
-		Entity: Entity{
-			ID:        id.V(),
-			CreatedAt: createdAt,
-			UpdatedAt: nil,
-		},
-		Rate: rate,
-		From: from,
+		ID:        id.V(),
+		CreatedAt: createdAt,
+		UpdatedAt: nil,
+		Rate:      rate,
+		From:      from,
 	}
 }
 
@@ -217,22 +214,16 @@ type Currency struct {
 
 func NewCurrency(id CurrencyID, code CurrencyCode, createdAt time.Time) Currency {
 	c := Currency{
-		AggregateRoot: AggregateRoot{
-			Entity: Entity{
-				ID:        id.V(),
-				CreatedAt: createdAt,
-			},
-		},
+		ID:            id.V(),
+		CreatedAt:     createdAt,
 		Code:          code,
 		ExchangeRates: []*ExchangeRate{},
 	}
 
 	c.AddDomainEvent(CurrencyCreatedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: createdAt,
-		},
-		ID:   id.V(),
-		Code: code.V(),
+		OccurredAt: createdAt,
+		ID:         id.V(),
+		Code:       code.V(),
 	})
 	return c
 }
@@ -260,9 +251,7 @@ func (c *Currency) AddExchangeRate(exchangeRate ExchangeRate, createdAt time.Tim
 
 	c.ExchangeRates = append(c.ExchangeRates, &exchangeRate)
 	c.AddDomainEvent(ExchangeRateAddedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: createdAt,
-		},
+		OccurredAt:     createdAt,
 		CurrencyID:     c.ID,
 		ExchangeRateID: exchangeRate.ID,
 		Rate:           exchangeRate.Rate.V(),
@@ -296,9 +285,7 @@ func (c *Currency) UpdateExchangeRate(exchangeRateId ExchangeRateID, rate Rate, 
 	}
 
 	c.AddDomainEvent(ExchangeRateUpdatedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: updatedAt,
-		},
+		OccurredAt:     updatedAt,
 		CurrencyID:     c.ID,
 		ExchangeRateID: exchangeRateByID.ID,
 		Rate:           exchangeRateByID.Rate.V(),
@@ -330,9 +317,7 @@ func (c *Currency) RemoveExchangeRate(exchangeRateID ExchangeRateID, updatedAt t
 
 	c.ExchangeRates = slices.Delete(c.ExchangeRates, idx, idx+1)
 	c.AddDomainEvent(ExchangeRateRemovedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: updatedAt,
-		},
+		OccurredAt:     updatedAt,
 		CurrencyID:     c.ID,
 		ExchangeRateID: exchangeRate.ID,
 	})
@@ -357,10 +342,8 @@ func (c *Currency) RemoveCurrency(removeAt time.Time) error {
 	}
 
 	c.AddDomainEvent(CurrencyRemovedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: removeAt,
-		},
-		ID: c.ID,
+		OccurredAt: removeAt,
+		ID:         c.ID,
 	})
 	return nil
 }
@@ -379,11 +362,11 @@ type CreateCurrencyHandler struct {
 }
 
 func (h CreateCurrencyHandler) Handle(ctx context.Context, req CreateCurrencyCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseCurrencyId)
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseCurrencyId)
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	exist, err := h.Currencies.ExistByID(ctx, id)
@@ -410,7 +393,7 @@ type RemoveCurrencyCommand struct {
 	Code string
 }
 
-func (r RemoveCurrencyCommand) Validate(err *RequestParserError) {
+func (r RemoveCurrencyCommand) Validate(err *RequestParseCollector) {
 }
 
 type RemoveCurrencyHandler struct {
@@ -420,10 +403,10 @@ type RemoveCurrencyHandler struct {
 }
 
 func (h RemoveCurrencyHandler) Handle(ctx context.Context, req RemoveCurrencyCommand) error {
-	errs := &RequestParserError{}
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	currency, err := h.Currencies.GetByCode(ctx, code)
@@ -454,13 +437,13 @@ type AddExchangeRateHandler struct {
 }
 
 func (h AddExchangeRateHandler) Handle(ctx context.Context, req AddExchangeRateCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, ParseExchangeRateFrom)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseExchangeRateId)
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	rate := parser.Parse("Rate", req.Rate, ParseRate)
+	from := parser.Parse("From", req.From, ParseExchangeRateFrom)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	currency, err := h.Currencies.GetByCode(ctx, code)
@@ -494,13 +477,13 @@ type UpdateExchangeRateHandler struct {
 }
 
 func (h UpdateExchangeRateHandler) Handle(ctx context.Context, req UpdateExchangeRateCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	rate := Parse(errs, "Rate", req.Rate, ParseRate)
-	from := Parse(errs, "From", req.From, ParseExchangeRateFrom)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseExchangeRateId)
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	rate := parser.Parse("Rate", req.Rate, ParseRate)
+	from := parser.Parse("From", req.From, ParseExchangeRateFrom)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	currency, err := h.Currencies.GetByCode(ctx, code)
@@ -529,11 +512,11 @@ type RemoveExchangeRateHandler struct {
 }
 
 func (h RemoveExchangeRateHandler) Handle(ctx context.Context, req RemoveExchangeRateCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseExchangeRateId)
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseExchangeRateId)
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	currency, err := h.Currencies.GetByCode(ctx, code)
@@ -559,10 +542,10 @@ type GetCurrencyHandler struct {
 }
 
 func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
-	errs := &RequestParserError{}
-	code := Parse(errs, "Code", req.Code, ParseCurrencyCode)
-	if errs.HasErrors() {
-		return nil, errs
+	parser := &RequestParseCollector{}
+	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
+	if parser.HasErrors() {
+		return nil, parser
 	}
 
 	currency, err := h.Currencies.GetByCode(ctx, code)

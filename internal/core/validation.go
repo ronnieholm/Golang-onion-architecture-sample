@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
-// RequestParserError collects errors from command and query requests. The
+// RequestParseCollector collects errors from command and query requests. The
 // request is a set of fields where a single field may fail multiple
 // validations. For instance, a password may fail multiple of minimum length,
 // upper case character, lower case character, and digit at the same time.
@@ -17,11 +16,11 @@ import (
 // web client, the error must enable the caller to correlate form fields to
 // request fields to validation errors so errors can be shown next to UI
 // elements.
-type RequestParserError struct {
+type RequestParseCollector struct {
 	FieldErrors map[string][]string
 }
 
-func (e *RequestParserError) Add(field, error string) {
+func (e *RequestParseCollector) add(field, error string) {
 	// Allocate the map here so allocation happens only on the error path.
 	if e.FieldErrors == nil {
 		e.FieldErrors = make(map[string][]string)
@@ -29,11 +28,11 @@ func (e *RequestParserError) Add(field, error string) {
 	e.FieldErrors[field] = append(e.FieldErrors[field], error)
 }
 
-func (e *RequestParserError) HasErrors() bool {
+func (e *RequestParseCollector) HasErrors() bool {
 	return len(e.FieldErrors) > 0
 }
 
-func (e *RequestParserError) Error() string {
+func (e *RequestParseCollector) Error() string {
 	if !e.HasErrors() {
 		return ""
 	}
@@ -56,8 +55,27 @@ func (e *RequestParserError) Error() string {
 	return b.String()
 }
 
+// Parse, don't validate pattern.
+func (e *RequestParseCollector) Parse[In any, Out any](field string, val In, fn func(In) (Out, error)) Out {
+	res, err := fn(val)
+	if err != nil {
+		// TOOD(rh): include field name in FieldParseError or consumer will have a hard time relating multiple errors to fields. Have Parse
+		// append field + "." + FieldParseError.Field if field is set.
+		if errs2, ok := err.(*FieldParseError); ok {
+			// When parsing a value object may lead to zero or many errors.
+			for _, msg := range errs2.Messages {
+				e.add(field, msg)
+			}
+		} else {
+			// When parsing a value object may lead to zero or one error.
+			e.add(field, err.Error())
+		}
+	}
+	return res
+}
+
 func ValidateUUIDNotZero(value uuid.UUID) error {
-	if value == uuid.Nil {
+	if value == uuid.Nil() {
 		return fmt.Errorf("must be non-zero, but was %s", value.String())
 	}
 	return nil

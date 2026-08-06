@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // Domain
@@ -171,20 +170,14 @@ type TierDiscount struct {
 
 func NewTierDiscount(id TierDiscountID, percentages DiscountPercentages, from TierDiscountFrom, createdAt time.Time) TierDiscount {
 	td := TierDiscount{
-		AggregateRoot: AggregateRoot{
-			Entity: Entity{
-				ID:        id.V(),
-				CreatedAt: createdAt,
-			},
-		},
+		ID:          id.V(),
+		CreatedAt:   createdAt,
 		Percentages: percentages,
 		From:        from,
 	}
 
 	td.AddDomainEvent(TierDiscountCreatedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: createdAt,
-		},
+		OccurredAt: createdAt,
 		ID:         id.V(),
 		Authorized: percentages.Authorized(),
 		Advanced:   percentages.Advanced(),
@@ -212,9 +205,7 @@ func (td *TierDiscount) Update(percentages DiscountPercentages, from TierDiscoun
 	td.UpdatedAt = &updatedAt
 
 	td.AddDomainEvent(TierDiscountUpdatedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: updatedAt,
-		},
+		OccurredAt: updatedAt,
 		ID:         td.ID,
 		Authorized: percentages.Authorized(),
 		Advanced:   percentages.Advanced(),
@@ -233,10 +224,8 @@ func (td *TierDiscount) Remove(removeAt time.Time) error {
 	}
 
 	td.AddDomainEvent(TierDiscountRemovedEvent{
-		domainEventCommon: domainEventCommon{
-			OccurredAt: removeAt,
-		},
-		ID: td.ID,
+		OccurredAt: removeAt,
+		ID:         td.ID,
 	})
 	return nil
 }
@@ -262,16 +251,16 @@ type CreateTierDiscountHandler struct {
 }
 
 func (h CreateTierDiscountHandler) Handle(ctx context.Context, req CreateTierDiscountCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
-	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseTierDiscountID)
+	percentages := parser.Parse("Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		// TODO(rh): ParseDiscountPercentages should return RequestParserError, but with 0, 1, 2 as key name. Here we translate 0 to "Percentages.Authorized".
 		//           Parsers calling each other recursively with outer ones patching up the path?
 		return ParseDiscountPercentages(dp.Authorized, dp.Advanced, dp.Premier)
 	})
-	from := Parse(errs, "From", req.From, ParseTierDiscountFrom)
-	if errs.HasErrors() {
-		return errs
+	from := parser.Parse("From", req.From, ParseTierDiscountFrom)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	found, err := h.TierDiscounts.ExistByID(ctx, id)
@@ -299,14 +288,14 @@ type UpdateTierDiscountHandler struct {
 }
 
 func (h UpdateTierDiscountHandler) Handle(ctx context.Context, req UpdateTierDiscountCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
-	percentages := Parse(errs, "Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseTierDiscountID)
+	percentages := parser.Parse("Percentages", req.Percentages, func(dp DiscountPercentagesInput) (DiscountPercentages, error) {
 		return ParseDiscountPercentages(dp.Advanced, dp.Advanced, dp.Premier)
 	})
-	from := Parse(errs, "From", req.From, ParseTierDiscountFrom)
-	if errs.HasErrors() {
-		return errs
+	from := parser.Parse("From", req.From, ParseTierDiscountFrom)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)
@@ -334,10 +323,10 @@ type RemoveTierDiscountHandler struct {
 }
 
 func (h RemoveTierDiscountHandler) Handle(ctx context.Context, req RemoveTierDiscountCommand) error {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
-	if errs.HasErrors() {
-		return errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseTierDiscountID)
+	if parser.HasErrors() {
+		return parser
 	}
 
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)
@@ -363,10 +352,10 @@ type GetTierDiscountHandler struct {
 }
 
 func (h GetTierDiscountHandler) Handle(ctx context.Context, req GetTierDiscountQuery) (*TierDiscount, error) {
-	errs := &RequestParserError{}
-	id := Parse(errs, "ID", req.ID, ParseTierDiscountID)
-	if errs.HasErrors() {
-		return nil, errs
+	parser := &RequestParseCollector{}
+	id := parser.Parse("ID", req.ID, ParseTierDiscountID)
+	if parser.HasErrors() {
+		return nil, parser
 	}
 
 	tierDiscount, err := h.TierDiscounts.GetByID(ctx, id)

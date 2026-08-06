@@ -3,8 +3,8 @@ package core
 import (
 	"fmt"
 	"testing"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
