@@ -106,13 +106,13 @@ db-drop:
 db-migrate-status:
 	@for db in $(DB_NAMES); do \
 		echo "Status for $$db"; \
-		$(GOOSE) postgres "$(DB_BASE_URL)/$$db" status; \
+		$(GOOSE) postgres "$(DB_SERVER_URL)/$$db" status; \
 	done
 
 db-migrate-up:
 	@for db in $(DB_NAMES); do \
 		echo "Migrating $$db up"; \
-		$(GOOSE) postgres "$(DB_BASE_URL)/$$db" up || exit 1; \
+		$(GOOSE) postgres "$(DB_SERVER_URL)/$$db" up || exit 1; \
 	done
 
 # goose supports two types of migrations:

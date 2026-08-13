@@ -126,7 +126,7 @@ type Dispatcher struct {
 	AddExchangeRate    Handler[core.AddExchangeRateCommand, Empty]
 	UpdateExchangeRate Handler[core.UpdateExchangeRateCommand, Empty]
 	RemoveExchangeRate Handler[core.RemoveExchangeRateCommand, Empty]
-	GetCurrency        Handler[core.GetCurrencyQuery, *core.Currency]
+	GetCurrency        Handler[core.GetCurrencyQuery, *core.CurrencyResponse]
 
 	// TierDiscount
 	CreateTierDiscount Handler[core.CreateTierDiscountCommand, Empty]

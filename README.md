@@ -27,11 +27,11 @@ It includes the following features:
 
 Create a `.env` file at the root of the repository with the following content:
 
-    DB_BASE_URL=postgres://postgres:secret@localhost:5432
+    DB_SERVER_URL=postgres://postgres:secret@localhost:5432
     DB_LOCAL_NAME=reseller_loyalty_local
     DB_LOCAL_INTEGRATION_TEST_NAME=reseller_loyalty_local_integration_test  
 
-Then run
+Then
 
     $ docker compose up
 

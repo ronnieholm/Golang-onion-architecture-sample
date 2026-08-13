@@ -537,11 +537,27 @@ type GetCurrencyQuery struct {
 	Code string
 }
 
+type ExchangeRateResponse struct {
+	ID        uuid.UUID
+	Rate      float64
+	From      Date
+	CreatedAt time.Time
+	UpdatedAt *time.Time
+}
+
+type CurrencyResponse struct {
+	ID            uuid.UUID
+	Code          string
+	ExchangeRates []*ExchangeRateResponse
+	CreatedAt     time.Time
+	UpdatedAt     *time.Time
+}
+
 type GetCurrencyHandler struct {
 	Currencies CurrencyStore
 }
 
-func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*Currency, error) {
+func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*CurrencyResponse, error) {
 	parser := &RequestParseCollector{}
 	code := parser.Parse("Code", req.Code, ParseCurrencyCode)
 	if parser.HasErrors() {
@@ -555,5 +571,23 @@ func (h GetCurrencyHandler) Handle(ctx context.Context, req GetCurrencyQuery) (*
 	if currency == nil {
 		return nil, NewNotFoundError("Currency", "Code", code.V())
 	}
-	return currency, nil
+
+	exchangeRates := make([]*ExchangeRateResponse, len(currency.ExchangeRates))
+	for i, e := range currency.ExchangeRates {
+		exchangeRates[i] = &ExchangeRateResponse{
+			ID:        e.ID,
+			Rate:      e.Rate.V(),
+			From:      e.From.V(),
+			CreatedAt: e.CreatedAt,
+			UpdatedAt: e.UpdatedAt,
+		}
+	}
+
+	return &CurrencyResponse{
+		ID:            currency.ID,
+		Code:          currency.Code.V(),
+		ExchangeRates: exchangeRates,
+		CreatedAt:     currency.CreatedAt,
+		UpdatedAt:     currency.UpdatedAt,
+	}, nil
 }
