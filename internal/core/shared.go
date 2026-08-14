@@ -437,6 +437,7 @@ func (d Date) Compare(dt Date) int {
 
 }
 
+// DaysBetween calculates the absolute number of days between two Dates.
 func (d Date) DaysBetween(dt Date) int {
 	diff := math.Abs(float64(d.Unix() - dt.Unix()))
 	return int(diff / 86400)

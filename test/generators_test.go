@@ -24,22 +24,20 @@ func UUIDGen() *rapid.Generator[uuid.UUID] {
 	})
 }
 
-// MapKeyGen generates a key from a non-empty map. It's handy when a map is used
-// to represent an enum. In that case case the map's key is the enum's value
-// while the map's value may be struct{}.
+// MapKeyGen generates a key from a non-empty map. It's useful when a map
+// represents an enum in which case the map's key is the enum's value and the
+// map's value may be struct{}.
 //
 // Because key order is unstable across map instances, to guarantee the same
-// outcome with the same seed requires a comparator function.
+// outcome with the same seed, a comparator function is requires.
 func MapKeyGen[K comparable, V any](m map[K]V, cmp func(K, K) int) *rapid.Generator[K] {
 	if len(m) == 0 {
 		panic("cannot draw from empty map")
 	}
-
 	keys := slices.Collect(maps.Keys(m))
 	slices.SortFunc(keys, cmp)
 	return rapid.Custom(func(t *rapid.T) K {
-		key := rapid.SampledFrom(keys).Draw(t, "key")
-		return key
+		return rapid.SampledFrom(keys).Draw(t, "key")
 	})
 }
 
@@ -53,11 +51,10 @@ func TimeRangeGen(min, max time.Time) *rapid.Generator[time.Time] {
 	})
 }
 
-// FakeClockGen generates a clock whose current time is within the operating
-// interval of the service. The operating interval is a narrower interval than
-// that of domain values to allow for domain values to be smaller or larger than
-// current time. For instance, space is guaranteed for an exchange rate whose
-// from field is before or after current time.
+// FakeClockGen generates a clock whose time is within the service's operating
+// interval. At both ends the operating interval is narrower than the domain
+// interval so domain may be smaller or larger than clock, e.g., to allow for
+// generating an exchange rate from before or after current time.
 func FakeClockGen() *rapid.Generator[core.Clock] {
 	// Leave one year to each side of full clock range.
 	min := core.MinClock.AddDate(1, 0, 0)
@@ -65,7 +62,6 @@ func FakeClockGen() *rapid.Generator[core.Clock] {
 	if min.After(max) {
 		panic("min must come before max")
 	}
-
 	return rapid.Custom(func(t *rapid.T) core.Clock {
 		now := TimeRangeGen(min, max).Draw(t, "now")
 		fc := &FakeClock{
@@ -75,11 +71,11 @@ func FakeClockGen() *rapid.Generator[core.Clock] {
 	})
 }
 
-// DateBetweenGen generates a Date between min and max, inclusive.
+// DateBetweenGen generates a date between min and max dates, inclusive.
 func DateBetweenGen(min, max core.Date) *rapid.Generator[core.Date] {
 	// Drawing a date between min and max by ranging over the Unix timestamp
 	// interval would result in min date being drawn too often because the
-	// non-date components of time would be chopped off.
+	// non-date components of time would dominate, yet be chopped off.
 	days := min.DaysBetween(max)
 	return rapid.Custom(func(t *rapid.T) core.Date {
 		offset := rapid.IntRange(0, days).Draw(t, "offset")
@@ -121,39 +117,29 @@ func CreateCurrencyValidGen() *rapid.Generator[CreateCurrencyValidFixture] {
 	})
 }
 
-type CreateCurrencyDuplicateInvalidFixture struct {
+type CreateCurrencyDuplicateIDInvalidFixture struct {
 	Base           CreateCurrencyValidFixture
 	CreateCurrency core.CreateCurrencyCommand
 }
 
-func CreateCurrencyDuplicateIDInvalidGen() *rapid.Generator[CreateCurrencyDuplicateInvalidFixture] {
-	// Ensure IDs match, but other fields don't. It proves that a conflict error
-	// is triggered specifically by the ID.
-	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateInvalidFixture {
+func CreateCurrencyDuplicateIDInvalidGen() *rapid.Generator[CreateCurrencyDuplicateIDInvalidFixture] {
+	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateIDInvalidFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
-
-		// Mutate all other fields except ID.
-		// TODO(rh): Maybe only randomly mutate?
-		code := CurrencyCodeGen().
-			Filter(func(c string) bool { return c != base.CreateCurrency.Code }).
-			Draw(t, "code")
-		create2 := CreateCurrencyCommandGen().Draw(t, "create_currency_2")
-		create2.ID = base.CreateCurrency.ID
-		create2.Code = code
-
-		return CreateCurrencyDuplicateInvalidFixture{
+		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
+		create.ID = base.CreateCurrency.ID
+		return CreateCurrencyDuplicateIDInvalidFixture{
 			Base:           base,
-			CreateCurrency: create2,
+			CreateCurrency: create,
 		}
 	})
 }
 
-func CreateCurrencyDuplicateCodeInvalidGen() *rapid.Generator[CreateCurrencyDuplicateInvalidFixture] {
-	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateInvalidFixture {
+func CreateCurrencyDuplicateCodeInvalidGen() *rapid.Generator[CreateCurrencyDuplicateIDInvalidFixture] {
+	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateIDInvalidFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
-		create := CreateCurrencyCommandGen().Draw(t, "create_currency_2")
+		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
 		create.Code = base.CreateCurrency.Code
-		return CreateCurrencyDuplicateInvalidFixture{
+		return CreateCurrencyDuplicateIDInvalidFixture{
 			Base:           base,
 			CreateCurrency: create,
 		}
@@ -179,10 +165,9 @@ func ExchangeRateFromGen() *rapid.Generator[core.Date] {
 
 func ExchangeRateFromAfterGen(after core.Date) *rapid.Generator[core.Date] {
 	if after.After(core.ExchangeRateFromMax) {
-		panic("after must be after high from")
+		panic("after must be after from max")
 	}
 	d := after.AddDate(0, 0, 1)
-
 	return rapid.Custom(func(t *rapid.T) core.Date {
 		return DateBetweenGen(d, core.ExchangeRateFromMax).Draw(t, "from")
 	})
@@ -199,18 +184,19 @@ func AddExchangeRateCommandGen() *rapid.Generator[core.AddExchangeRateCommand] {
 	})
 }
 
-type AddExchangeRateFromPolicyFixture = struct {
+type AddExchangeRateFromDateBoundaryFixture = struct {
 	Base            CreateCurrencyValidFixture
 	AddExchangeRate core.AddExchangeRateCommand
-	// The goal is to specify the invariant. Therefore generate both valid and
+	// The goal is to specify the invariant. Therefore include both valid and
 	// invalid cases within the same fixture.
 	ShouldPass bool
 }
 
-func AddExchangeRateFromPolicyGen() *rapid.Generator[AddExchangeRateFromPolicyFixture] {
-	return rapid.Custom(func(t *rapid.T) AddExchangeRateFromPolicyFixture {
+func AddExchangeRateFromDateBoundaryGen() *rapid.Generator[AddExchangeRateFromDateBoundaryFixture] {
+	return rapid.Custom(func(t *rapid.T) AddExchangeRateFromDateBoundaryFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		min := today.DaysBetween(core.ExchangeRateFromMin)
 		max := today.DaysBetween(core.ExchangeRateFromMax)
 		offset := rapid.IntRange(-min, max).Draw(t, "offset")
@@ -219,7 +205,7 @@ func AddExchangeRateFromPolicyGen() *rapid.Generator[AddExchangeRateFromPolicyFi
 		add.Code = base.CreateCurrency.Code
 		add.From = today.AddDate(0, 0, offset)
 
-		return AddExchangeRateFromPolicyFixture{
+		return AddExchangeRateFromDateBoundaryFixture{
 			Base:            base,
 			AddExchangeRate: add,
 			ShouldPass:      offset > 0,
@@ -237,18 +223,17 @@ func AddExchangeRateDuplicateFromInvalidGen() *rapid.Generator[AddExchangeRateDu
 	return rapid.Custom(func(t *rapid.T) AddExchangeRateDuplicateFromInvalidFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
-		add1 := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate_1")
-		add1.Code = base.CreateCurrency.Code
+
 		max := today.DaysBetween(core.ExchangeRateFromMax)
 		offset := rapid.IntRange(1, max).Draw(t, "offset")
+
+		add1 := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate_1")
+		add1.Code = base.CreateCurrency.Code
 		add1.From = today.AddDate(0, 0, offset)
+
 		add2 := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate_2")
 		add2.Code = add1.Code
 		add2.From = add1.From
-
-		if !rapid.Bool().Draw(t, "same_rate") {
-			add2.Rate = ExchangeRateRateGen().Draw(t, "new_rate")
-		}
 
 		return AddExchangeRateDuplicateFromInvalidFixture{
 			Base:             base,
@@ -269,17 +254,18 @@ func UpdateExchangeRateCommandGen() *rapid.Generator[core.UpdateExchangeRateComm
 	})
 }
 
-type UpdateExchangeRateFromPolicyFixture = struct {
+type UpdateExchangeRateFromDateBoundaryFixture = struct {
 	Base               CreateCurrencyValidFixture
 	AddExchangeRate    core.AddExchangeRateCommand
 	UpdateExchangeRate core.UpdateExchangeRateCommand
 	ShouldPass         bool
 }
 
-func UpdateExchangeRateFromPolicyGen() *rapid.Generator[UpdateExchangeRateFromPolicyFixture] {
-	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFromPolicyFixture {
+func UpdateExchangeRateFromDateBoundaryGen() *rapid.Generator[UpdateExchangeRateFromDateBoundaryFixture] {
+	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFromDateBoundaryFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		min := today.DaysBetween(core.ExchangeRateFromMin)
 		max := today.DaysBetween(core.ExchangeRateFromMax)
 		offset := rapid.IntRange(-min, max).Draw(t, "offset")
@@ -293,7 +279,7 @@ func UpdateExchangeRateFromPolicyGen() *rapid.Generator[UpdateExchangeRateFromPo
 		update.Code = add.Code
 		update.From = today.AddDate(0, 0, offset)
 
-		return UpdateExchangeRateFromPolicyFixture{
+		return UpdateExchangeRateFromDateBoundaryFixture{
 			Base:               base,
 			AddExchangeRate:    add,
 			UpdateExchangeRate: update,
@@ -312,11 +298,11 @@ func UpdateExchangeRateIDInvalidGen() *rapid.Generator[UpdateExchangeRateFixture
 	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
-		max := today.DaysBetween(core.ExchangeRateFromMax)
-		offset := rapid.IntRange(1, max).Draw(t, "offset")
 		add.Code = base.CreateCurrency.Code
-		add.From = today.AddDate(0, 0, offset)
+		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
+
 		update := UpdateExchangeRateCommandGen().Draw(t, "update_exchange_rate")
 		update.Code = base.CreateCurrency.Code
 		update.From = add.From
@@ -333,11 +319,11 @@ func UpdateExchangeRateCodeInvalidGen() *rapid.Generator[UpdateExchangeRateFixtu
 	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
-		max := today.DaysBetween(core.ExchangeRateFromMax)
-		offset := rapid.IntRange(1, max).Draw(t, "offset")
 		add.Code = base.CreateCurrency.Code
-		add.From = today.AddDate(0, 0, offset)
+		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
+
 		update := UpdateExchangeRateCommandGen().Draw(t, "update_exchange_rate")
 		update.ID = add.ID
 		update.Code = CurrencyCodeGen().
@@ -356,11 +342,11 @@ func UpdateExchangeRateUnchangedInvalidGen() *rapid.Generator[UpdateExchangeRate
 	return rapid.Custom(func(t *rapid.T) UpdateExchangeRateFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
-		max := today.DaysBetween(core.ExchangeRateFromMax)
-		offset := rapid.IntRange(1, max).Draw(t, "offset")
 		add.Code = base.CreateCurrency.Code
-		add.From = today.AddDate(0, 0, offset)
+		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
+
 		update := core.UpdateExchangeRateCommand{
 			ID:   add.ID,
 			Code: base.CreateCurrency.Code,
@@ -376,7 +362,7 @@ func UpdateExchangeRateUnchangedInvalidGen() *rapid.Generator[UpdateExchangeRate
 	})
 }
 
-type RemoveCurrencyFromPolicyFixture struct {
+type RemoveCurrencyFromDateBoundaryFixture struct {
 	Base            CreateCurrencyValidFixture
 	AddExchangeRate *core.AddExchangeRateCommand
 	RemoveClock     *core.Clock
@@ -384,21 +370,20 @@ type RemoveCurrencyFromPolicyFixture struct {
 	ShouldPass      bool
 }
 
-func RemoveCurrencyFromPolicyGen() *rapid.Generator[RemoveCurrencyFromPolicyFixture] {
-	return rapid.Custom(func(t *rapid.T) RemoveCurrencyFromPolicyFixture {
+func RemoveCurrencyFromDateBoundaryGen() *rapid.Generator[RemoveCurrencyFromDateBoundaryFixture] {
+	return rapid.Custom(func(t *rapid.T) RemoveCurrencyFromDateBoundaryFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
-		hasExchangeRate := rapid.Bool().Draw(t, "with_exchange_rate")
 
 		var add *core.AddExchangeRateCommand
 		var removeClock *core.Clock
 		var shouldPass = true
+		hasExchangeRate := rapid.Bool().Draw(t, "has_exchange_rate")
 		if hasExchangeRate {
 			today := base.Clock.Today()
-			maxDays := today.DaysBetween(core.ExchangeRateFromMax)
-			offset := rapid.IntRange(1, maxDays).Draw(t, "offset")
+
 			cmd := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
 			cmd.Code = base.CreateCurrency.Code
-			cmd.From = today.AddDate(0, 0, offset)
+			cmd.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
 			add = &cmd
 
 			min := core.ExchangeRateFromMin
@@ -419,7 +404,7 @@ func RemoveCurrencyFromPolicyGen() *rapid.Generator[RemoveCurrencyFromPolicyFixt
 			Code: base.CreateCurrency.Code,
 		}
 
-		return RemoveCurrencyFromPolicyFixture{
+		return RemoveCurrencyFromDateBoundaryFixture{
 			Base:            base,
 			AddExchangeRate: add,
 			RemoveClock:     removeClock,
@@ -450,7 +435,7 @@ func RemoveCurrencyCodeInvalidGen() *rapid.Generator[RemoveCurrencyCodeInvalidFi
 	})
 }
 
-type RemoveExchangeRateFromPolicyFixture struct {
+type RemoveExchangeRateFromDateBoundaryFixture struct {
 	Base               CreateCurrencyValidFixture
 	AddExchangeRate    core.AddExchangeRateCommand
 	RemoveClock        core.Clock
@@ -458,10 +443,11 @@ type RemoveExchangeRateFromPolicyFixture struct {
 	ShouldPass         bool
 }
 
-func RemoveExchangeRateFromPolicyGen() *rapid.Generator[RemoveExchangeRateFromPolicyFixture] {
-	return rapid.Custom(func(t *rapid.T) RemoveExchangeRateFromPolicyFixture {
+func RemoveExchangeRateFromDateBoundaryGen() *rapid.Generator[RemoveExchangeRateFromDateBoundaryFixture] {
+	return rapid.Custom(func(t *rapid.T) RemoveExchangeRateFromDateBoundaryFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
 		add.Code = base.CreateCurrency.Code
 		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
@@ -482,7 +468,7 @@ func RemoveExchangeRateFromPolicyGen() *rapid.Generator[RemoveExchangeRateFromPo
 			Code: base.CreateCurrency.Code,
 		}
 
-		return RemoveExchangeRateFromPolicyFixture{
+		return RemoveExchangeRateFromDateBoundaryFixture{
 			Base:               base,
 			AddExchangeRate:    add,
 			RemoveClock:        removeClock,
@@ -502,6 +488,7 @@ func RemoveExchangeRateCodeInvalidGen() *rapid.Generator[RemoveExchangeRateFixtu
 	return rapid.Custom(func(t *rapid.T) RemoveExchangeRateFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
 		add.Code = base.CreateCurrency.Code
 		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
@@ -526,6 +513,7 @@ func RemoveExchangeRateIDInvalidGen() *rapid.Generator[RemoveExchangeRateFixture
 	return rapid.Custom(func(t *rapid.T) RemoveExchangeRateFixture {
 		base := CreateCurrencyValidGen().Draw(t, "base")
 		today := base.Clock.Today()
+
 		add := AddExchangeRateCommandGen().Draw(t, "add_exchange_rate")
 		add.Code = base.CreateCurrency.Code
 		add.From = ExchangeRateFromAfterGen(today).Draw(t, "from")
