@@ -226,6 +226,8 @@ func (td *CurrencyTests) TestRemoveCurrencyFromDateBoundary() {
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
+			_, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			require.Error(t, err)
 		} else {
 			var e *core.DomainError
 			require.ErrorAs(t, err, &e)
@@ -262,6 +264,9 @@ func (td *CurrencyTests) TestRemoveExchangeRateFromDateBoundary() {
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
+			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			require.NoError(t, err)
+			require.Len(t, c.ExchangeRates, 0)
 		} else {
 			var e *core.DomainError
 			require.ErrorAs(t, err, &e)
