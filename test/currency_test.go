@@ -100,6 +100,13 @@ func (td *CurrencyTests) TestAddExchangeRateFromDateBoundary() {
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
+			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			require.NoError(t, err)
+			require.Len(t, c.ExchangeRates, 1)
+			e := c.ExchangeRates[0]
+			assert.Equal(t, fx.AddExchangeRate.ID, e.ID)
+			assert.Equal(t, fx.AddExchangeRate.Code, fx.Base.CreateCurrency.Code)
+			assert.Equal(t, fx.AddExchangeRate.From, e.From)
 		} else {
 			var e *core.DomainError
 			require.ErrorAs(t, err, &e)
@@ -138,6 +145,12 @@ func (td *CurrencyTests) TestUpdateExchangeRateFromDateBoundary() {
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
+			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			require.NoError(t, err)
+			e := c.ExchangeRates[0]
+			assert.Equal(t, fx.UpdateExchangeRate.ID, e.ID)
+			assert.Equal(t, fx.UpdateExchangeRate.Code, fx.Base.CreateCurrency.Code)
+			assert.Equal(t, fx.UpdateExchangeRate.From, e.From)
 		} else {
 			var e *core.DomainError
 			require.ErrorAs(t, err, &e)
