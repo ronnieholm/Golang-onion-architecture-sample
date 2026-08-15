@@ -33,12 +33,16 @@ build:
 # Test without race detector.
 .PHONY: test
 test:
-	$(GO) test ./... -v -parallel 1 -shuffle=on 
+	# The -p option doesn't have a long-form name. If it did, it would be
+	# --parallel-packages. So -p controls how many packages are run in parallel
+	# whereas -parallel controls how many tests are run in parallel inside a
+	# single package. -parallel only applies to tests marked with t.Parallel().
+	$(GO) test ./... -v -p=1 -parallel 1 -shuffle=on 
 
 # Test with race detector.
 #.PHONY: test-race
 test-race:
-	$(GO) test ./... -v -race -parallel 1 -shuffle=on 
+	$(GO) test ./... -v -race -p=1 -parallel=1 -shuffle=on 
 
 .PHONY: lint
 lint:
