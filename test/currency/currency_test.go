@@ -1,4 +1,4 @@
-package test
+package currency
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/ronnieholm/resellerloyalty/internal/core"
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
+	"github.com/ronnieholm/resellerloyalty/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,15 +20,15 @@ type CurrencyTests struct {
 	suite.Suite
 	ctx        context.Context
 	config     *infrastructure.Config
-	clock      *SwitchableClock
+	clock      *test.SwitchableClock
 	dispatcher infrastructure.Dispatcher
 }
 
 func (td *CurrencyTests) SetupSuite() {
 	td.ctx = context.Background()
-	td.config = loadConfig()
-	td.clock = &SwitchableClock{}
-	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *config, infrastructure.WithClock(td.clock))
+	td.config = test.LoadConfig()
+	td.clock = &test.SwitchableClock{}
+	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *test.Config, infrastructure.WithClock(td.clock))
 }
 
 func (td *CurrencyTests) TearDownSuite() {
@@ -35,7 +36,7 @@ func (td *CurrencyTests) TearDownSuite() {
 }
 
 func (td *CurrencyTests) cleanUp() {
-	resetDB(td.ctx, td.dispatcher.PgxPool)
+	test.ResetDB(td.ctx, td.dispatcher.PgxPool)
 }
 
 func (td *CurrencyTests) setup(t *rapid.T, fx CreateCurrencyValidFixture) {

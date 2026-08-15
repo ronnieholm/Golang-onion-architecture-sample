@@ -1,0 +1,138 @@
+package test
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"uuid"
+
+	"github.com/ronnieholm/resellerloyalty/internal/core"
+	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
+	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
+)
+
+// At each tick of state machine, move time forward by 1 day.
+// Maintain lists of in-memory aggregates.
+// After each step, replay events and compare with in-memory aggregates.
+
+var ctx = context.Background()
+var clock = &SwitchableClock{}
+var dispatcher infrastructure.Dispatcher
+
+var currencies = map[uuid.UUID]core.CurrencyResponse{}
+var freeCurrencyCodes map[string]struct{}
+
+func setup() {
+	LoadConfig()
+	dispatcher = infrastructure.NewDispatcher(ctx, *config, infrastructure.WithClock(clock))
+	ResetDB(ctx, dispatcher.PgxPool)
+	for cc := range core.CurrencyCodes {
+		freeCurrencyCodes[cc] = struct{}{}
+	}
+}
+
+func createCurrency(t *rapid.T) {
+	if len(freeCurrencyCodes) == 0 {
+		t.Skip("no free codes")
+	}
+
+	// clock.Current = clock. advance between 1 and 7 days.
+	create := CreateCurrencyCommandGen().Draw(t, "create_currency")
+	create.Code = genMapKey(freeCurrencyCodes, strings.Compare).Draw(t, "free_currency_code")
+	delete(freeCurrencyCodes, create.Code)
+
+	_, err := dispatcher.CreateCurrency(ctx, create)
+	require.NoError(t, err)
+	currency, err := dispatcher.GetCurrency(ctx, core.GetCurrencyQuery{Code: create.Code})
+	require.NoError(t, err)
+	currencies[currency.ID] = *currency
+}
+
+func createCurrencyDuplicateId(t *rapid.T) {
+	// find a duplicate id
+}
+
+func createCurrencyDuplicateCode(t *rapid.T) {
+	// find a duplicate code
+}
+
+func removeCurrency(t *rapid.T) {
+	if len(currencies) == 0 {
+		t.Skip("no currencies")
+	}
+	// Is anyone in the future
+	// If we have monotically increasing time, some conditions are hard to provoke.
+	// It would be better for each command to adjust time as it sees fit.
+	// Problem is that doesn't reflect real time conditions well.
+
+	// remove non-existing currency.
+}
+
+func removeCurrencyNonExisting(t *rapid.T) {
+	// always
+}
+
+func testCurrency(t *rapid.T) {
+	// TODO(rh): clean-up
+	setup()
+	t.Repeat(map[string]func(*rapid.T){
+		"createCurrency":              createCurrency,
+		"createCurrencyDuplicateId":   createCurrencyDuplicateId,
+		"createCurrencyDuplicateCode": createCurrencyDuplicateCode,
+		"removeCurrency":              removeCurrency,
+		"removeCurrencyNonExisting":   removeCurrencyNonExisting,
+	})
+
+	// t.Repeat(map[string]func(*rapid.T){
+	// 	"executeCommand": func(t *rapid.T) {
+	// 		// Define weights for your commands
+	// 		// Example: Create gets weight 10, Remove gets weight 5 (50%)
+	// 		choice := rapid.IntRange(1, 15).Draw(t, "commandChoice")
+
+	// 		switch {
+	// 		case choice <= 4:
+	// 			createCurrency(t)
+	// 		case choice <= 8:
+	// 			createCurrencyDuplicateId(t)
+	// 		case choice <= 10:
+	// 			createCurrencyDuplicateCode(t)
+	// 		case choice <= 13:
+	// 			removeCurrency(t) // Runs roughly half as often as createCurrency combined
+	// 		default:
+	// 			removeCurrencyNonExisting(t)
+	// 		}
+	// 	},
+	// })
+}
+
+// Rename to TestQueue(t *testing.T) to make an actual (failing) test.
+func ExampleT_Repeat_queue() {
+	var t *testing.T
+	rapid.Check(t, testCurrency)
+}
+
+/*
+  CreateCurrency     Handler[core.CreateCurrencyCommand, Empty]
+    Duplicate id
+	Duplicate code
+	Only if more codes available
+  RemoveCurrency     Handler[core.RemoveCurrencyCommand, Empty]
+    Only if currency count > 0
+  AddExchangeRate    Handler[core.AddExchangeRateCommand, Empty]
+    Only if currency count > 0
+	No duplicate from
+	Duplicate from
+	No adding in the past
+  UpdateExchangeRate Handler[core.UpdateExchangeRateCommand, Empty]
+  	Only if currency count > 0 and exchange rate count > 0
+	No duplicate from
+	Duplicate from
+	No updating in the past
+  RemoveExchangeRate Handler[core.RemoveExchangeRateCommand, Empty]
+  	Only if currency count > 0 and exchange rate count > 0
+	No removing in the past
+  GetCurrency        Handler[core.GetCurrencyQuery, *core.Currency]
+    Non-existant
+	Only if currency count > 0
+*/
