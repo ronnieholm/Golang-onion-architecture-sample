@@ -37,7 +37,7 @@ func (td *TierDiscountTests) cleanUp() {
 func (td *TierDiscountTests) TestCreateTierDiscountValid() {
 	rapid.Check(td.T(), func(t *rapid.T) {
 		td.cleanUp()
-		fx := CreateTierDiscountValidGen().Draw(t, "fx")
+		fx := genCreateTierDiscountValid().Draw(t, "fx")
 		td.clock.Current = fx.Clock
 
 		_, err := td.dispatcher.CreateTierDiscount(td.ctx, fx.CreateTierDiscount)
