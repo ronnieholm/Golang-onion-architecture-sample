@@ -193,7 +193,7 @@ func (e *ExchangeRate) Update(rate Rate, from ExchangeRateFrom, updatedAt time.T
 	if e.Rate == rate && e.From == from {
 		return NewDomainError(
 			CurrencyUpdateRequiresChange,
-			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate, from))
+			fmt.Sprintf("update exchange rate requires a rate different from %g and/or a from different from %s", rate.V(), from))
 	}
 
 	e.Rate = rate
