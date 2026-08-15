@@ -1,4 +1,4 @@
-package currency
+package currency_test
 
 import (
 	"math"
@@ -6,18 +6,18 @@ import (
 	"uuid"
 
 	"github.com/ronnieholm/resellerloyalty/internal/core"
-	"github.com/ronnieholm/resellerloyalty/test"
+	"github.com/ronnieholm/resellerloyalty/test/testutil"
 	"pgregory.net/rapid"
 )
 
 func genCurrencyCode() *rapid.Generator[string] {
-	return test.GenMapKey(core.CurrencyCodes, strings.Compare)
+	return testutil.GenMapKey(core.CurrencyCodes, strings.Compare)
 }
 
 func CreateCurrencyCommandGen() *rapid.Generator[core.CreateCurrencyCommand] {
 	return rapid.Custom(func(t *rapid.T) core.CreateCurrencyCommand {
 		return core.CreateCurrencyCommand{
-			ID:   test.GenUUID().Draw(t, "id"),
+			ID:   testutil.GenUUID().Draw(t, "id"),
 			Code: genCurrencyCode().Draw(t, "code"),
 		}
 	})
@@ -31,7 +31,7 @@ type CreateCurrencyValidFixture struct {
 
 func genCreateCurrencyValid() *rapid.Generator[CreateCurrencyValidFixture] {
 	return rapid.Custom(func(t *rapid.T) CreateCurrencyValidFixture {
-		clock := test.GenFakeClock().Draw(t, "clock")
+		clock := testutil.GenFakeClock().Draw(t, "clock")
 		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
 		get := core.GetCurrencyQuery{
 			Code: create.Code,
@@ -86,7 +86,7 @@ func genExchangeRateRate() *rapid.Generator[float64] {
 
 func genExchangeRateFrom() *rapid.Generator[core.Date] {
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return test.GenDateBetween(core.ExchangeRateFromMin, core.ExchangeRateFromMax).Draw(t, "from")
+		return testutil.GenDateBetween(core.ExchangeRateFromMin, core.ExchangeRateFromMax).Draw(t, "from")
 	})
 }
 
@@ -96,14 +96,14 @@ func genExchangeRateFromAfter(after core.Date) *rapid.Generator[core.Date] {
 	}
 	d := after.AddDate(0, 0, 1)
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return test.GenDateBetween(d, core.ExchangeRateFromMax).Draw(t, "from")
+		return testutil.GenDateBetween(d, core.ExchangeRateFromMax).Draw(t, "from")
 	})
 }
 
 func genAddExchangeRateCommand() *rapid.Generator[core.AddExchangeRateCommand] {
 	return rapid.Custom(func(t *rapid.T) core.AddExchangeRateCommand {
 		return core.AddExchangeRateCommand{
-			ID:   test.GenUUID().Draw(t, "id"),
+			ID:   testutil.GenUUID().Draw(t, "id"),
 			Code: genCurrencyCode().Draw(t, "code"),
 			Rate: genExchangeRateRate().Draw(t, "rate"),
 			From: genExchangeRateFrom().Draw(t, "from"),
@@ -173,7 +173,7 @@ func genAddExchangeRateDuplicateFromInvalid() *rapid.Generator[AddExchangeRateDu
 func genUpdateExchangeRateCommand() *rapid.Generator[core.UpdateExchangeRateCommand] {
 	return rapid.Custom(func(t *rapid.T) core.UpdateExchangeRateCommand {
 		return core.UpdateExchangeRateCommand{
-			ID:   test.GenUUID().Draw(t, "id"),
+			ID:   testutil.GenUUID().Draw(t, "id"),
 			Code: genCurrencyCode().Draw(t, "code"),
 			Rate: genExchangeRateRate().Draw(t, "rate"),
 			From: genExchangeRateFrom().Draw(t, "from"),
@@ -322,7 +322,7 @@ func genRemoveCurrencyFromDateBoundary() *rapid.Generator[RemoveCurrencyFromDate
 				min = add.From
 			}
 			clock := rapid.
-				Map(test.GenDateBetween(min, max), func(d core.Date) core.Clock { return &test.FakeClock{Now: d.Time} }).
+				Map(testutil.GenDateBetween(min, max), func(d core.Date) core.Clock { return &testutil.FakeClock{Now: d.Time} }).
 				Draw(t, "remove_clock")
 			removeClock = &clock
 		}
@@ -388,7 +388,7 @@ func genRemoveExchangeRateFromDateBoundary() *rapid.Generator[RemoveExchangeRate
 			min = add.From
 		}
 		removeClock := rapid.
-			Map(test.GenDateBetween(min, max), func(d core.Date) core.Clock { return &test.FakeClock{Now: d.Time} }).
+			Map(testutil.GenDateBetween(min, max), func(d core.Date) core.Clock { return &testutil.FakeClock{Now: d.Time} }).
 			Draw(t, "remove_clock")
 		remove := core.RemoveExchangeRateCommand{
 			ID:   add.ID,
@@ -445,7 +445,7 @@ func genRemoveExchangeRateIDInvalid() *rapid.Generator[RemoveExchangeRateFixture
 		add.Code = base.CreateCurrency.Code
 		add.From = genExchangeRateFromAfter(today).Draw(t, "from")
 
-		otherID := test.GenUUID().
+		otherID := testutil.GenUUID().
 			Filter(func(id uuid.UUID) bool { return id != add.ID }).
 			Draw(t, "other_id")
 		remove := core.RemoveExchangeRateCommand{

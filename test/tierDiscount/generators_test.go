@@ -1,11 +1,11 @@
-package tierDiscount
+package tierDiscount_test
 
 import (
 	"math"
 	"slices"
 
 	"github.com/ronnieholm/resellerloyalty/internal/core"
-	"github.com/ronnieholm/resellerloyalty/test"
+	"github.com/ronnieholm/resellerloyalty/test/testutil"
 	"pgregory.net/rapid"
 )
 
@@ -36,7 +36,7 @@ func genDiscountPercentages() *rapid.Generator[core.DiscountPercentagesInput] {
 
 func genTierDiscountFrom() *rapid.Generator[core.Date] {
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return test.GenDateBetween(core.TierDiscountFromMin, core.TierDiscountFromMin).Draw(t, "from")
+		return testutil.GenDateBetween(core.TierDiscountFromMin, core.TierDiscountFromMin).Draw(t, "from")
 	})
 }
 
@@ -47,14 +47,14 @@ func genTierDiscountAfter(after core.Date) *rapid.Generator[core.Date] {
 	d := after.AddDate(0, 0, 1)
 
 	return rapid.Custom(func(t *rapid.T) core.Date {
-		return test.GenDateBetween(d, core.TierDiscountFromMax).Draw(t, "from")
+		return testutil.GenDateBetween(d, core.TierDiscountFromMax).Draw(t, "from")
 	})
 }
 
 func genCreateTierDiscountCommand() *rapid.Generator[core.CreateTierDiscountCommand] {
 	return rapid.Custom(func(t *rapid.T) core.CreateTierDiscountCommand {
 		return core.CreateTierDiscountCommand{
-			ID:          test.GenUUID().Draw(t, "id"),
+			ID:          testutil.GenUUID().Draw(t, "id"),
 			Percentages: genDiscountPercentages().Draw(t, "percentages"),
 			From:        genTierDiscountFrom().Draw(t, "from"),
 		}
@@ -69,7 +69,7 @@ type CreateTierDiscountValidFixture struct {
 
 func genCreateTierDiscountValid() *rapid.Generator[CreateTierDiscountValidFixture] {
 	return rapid.Custom(func(t *rapid.T) CreateTierDiscountValidFixture {
-		clock := test.GenFakeClock().Draw(t, "clock")
+		clock := testutil.GenFakeClock().Draw(t, "clock")
 		uniqueDates := rapid.SliceOfNDistinct(
 			genTierDiscountAfter(clock.Today()),
 			/* min */ 1 /* max */, 2,

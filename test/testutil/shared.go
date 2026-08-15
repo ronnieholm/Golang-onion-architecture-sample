@@ -1,4 +1,4 @@
-package test
+package testutil
 
 import (
 	"context"
@@ -14,6 +14,11 @@ import (
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
 	"pgregory.net/rapid"
 )
+
+// The testutil folder acts as a safe container for sharing code between test
+// packages. As long as production code never imports testutil, none of its
+// contents or third-party dependencies like rapid will leak into the production
+// deployment.
 
 var (
 	once   sync.Once

@@ -1,11 +1,11 @@
-package tierDiscount
+package tierDiscount_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/ronnieholm/resellerloyalty/internal/infrastructure"
-	"github.com/ronnieholm/resellerloyalty/test"
+	"github.com/ronnieholm/resellerloyalty/test/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,15 +16,15 @@ type TierDiscountTests struct {
 	suite.Suite
 	ctx        context.Context
 	config     *infrastructure.Config
-	clock      *test.SwitchableClock
+	clock      *testutil.SwitchableClock
 	dispatcher infrastructure.Dispatcher
 }
 
 func (td *TierDiscountTests) SetupSuite() {
 	td.ctx = context.Background()
-	td.config = test.LoadConfig()
-	td.clock = &test.SwitchableClock{}
-	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *test.Config, infrastructure.WithClock(td.clock))
+	td.config = testutil.LoadConfig()
+	td.clock = &testutil.SwitchableClock{}
+	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *testutil.Config, infrastructure.WithClock(td.clock))
 }
 
 func (td *TierDiscountTests) TearDownSuite() {
@@ -32,7 +32,7 @@ func (td *TierDiscountTests) TearDownSuite() {
 }
 
 func (td *TierDiscountTests) cleanUp() {
-	test.ResetDB(td.ctx, td.dispatcher.PgxPool)
+	testutil.ResetDB(td.ctx, td.dispatcher.PgxPool)
 }
 
 func (td *TierDiscountTests) TestCreateTierDiscountValid() {
