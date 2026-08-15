@@ -14,7 +14,7 @@ func genCurrencyCode() *rapid.Generator[string] {
 	return testutil.GenMapKey(core.CurrencyCodes, strings.Compare)
 }
 
-func CreateCurrencyCommandGen() *rapid.Generator[core.CreateCurrencyCommand] {
+func genCreateCurrencyCommand() *rapid.Generator[core.CreateCurrencyCommand] {
 	return rapid.Custom(func(t *rapid.T) core.CreateCurrencyCommand {
 		return core.CreateCurrencyCommand{
 			ID:   testutil.GenUUID().Draw(t, "id"),
@@ -32,7 +32,7 @@ type CreateCurrencyValidFixture struct {
 func genCreateCurrencyValid() *rapid.Generator[CreateCurrencyValidFixture] {
 	return rapid.Custom(func(t *rapid.T) CreateCurrencyValidFixture {
 		clock := testutil.GenFakeClock().Draw(t, "clock")
-		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
+		create := genCreateCurrencyCommand().Draw(t, "create_currency")
 		get := core.GetCurrencyQuery{
 			Code: create.Code,
 		}
@@ -52,7 +52,7 @@ type CreateCurrencyDuplicateIDInvalidFixture struct {
 func genCreateCurrencyDuplicateIDInvalid() *rapid.Generator[CreateCurrencyDuplicateIDInvalidFixture] {
 	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateIDInvalidFixture {
 		base := genCreateCurrencyValid().Draw(t, "base")
-		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
+		create := genCreateCurrencyCommand().Draw(t, "create_currency")
 		create.ID = base.CreateCurrency.ID
 		return CreateCurrencyDuplicateIDInvalidFixture{
 			Base:           base,
@@ -64,7 +64,7 @@ func genCreateCurrencyDuplicateIDInvalid() *rapid.Generator[CreateCurrencyDuplic
 func genCreateCurrencyDuplicateCodeInvalid() *rapid.Generator[CreateCurrencyDuplicateIDInvalidFixture] {
 	return rapid.Custom(func(t *rapid.T) CreateCurrencyDuplicateIDInvalidFixture {
 		base := genCreateCurrencyValid().Draw(t, "base")
-		create := CreateCurrencyCommandGen().Draw(t, "create_currency")
+		create := genCreateCurrencyCommand().Draw(t, "create_currency")
 		create.Code = base.CreateCurrency.Code
 		return CreateCurrencyDuplicateIDInvalidFixture{
 			Base:           base,

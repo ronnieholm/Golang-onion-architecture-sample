@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"maps"
@@ -102,6 +103,10 @@ func GenUUID() *rapid.Generator[uuid.UUID] {
 		id[8] = (id[8] & 0x3f) | 0x80
 		return id
 	})
+}
+
+func UUIDComparer(a, b uuid.UUID) int {
+	return bytes.Compare(a[:], b[:])
 }
 
 // GenMapKey generates a key from a non-empty map. It's useful when a map

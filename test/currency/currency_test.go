@@ -24,48 +24,48 @@ type CurrencyTests struct {
 	dispatcher infrastructure.Dispatcher
 }
 
-func (td *CurrencyTests) SetupSuite() {
-	td.ctx = context.Background()
-	td.config = testutil.LoadConfig()
-	td.clock = &testutil.SwitchableClock{}
-	td.dispatcher = infrastructure.NewDispatcher(td.ctx, *testutil.Config, infrastructure.WithClock(td.clock))
+func (ct *CurrencyTests) SetupSuite() {
+	ct.ctx = context.Background()
+	ct.config = testutil.LoadConfig()
+	ct.clock = &testutil.SwitchableClock{}
+	ct.dispatcher = infrastructure.NewDispatcher(ct.ctx, *testutil.Config, infrastructure.WithClock(ct.clock))
 }
 
-func (td *CurrencyTests) TearDownSuite() {
-	td.dispatcher.Close()
+func (ct *CurrencyTests) TearDownSuite() {
+	ct.dispatcher.Close()
 }
 
-func (td *CurrencyTests) cleanUp() {
-	testutil.ResetDB(td.ctx, td.dispatcher.PgxPool)
+func (ct *CurrencyTests) cleanUp() {
+	testutil.ResetDB(ct.ctx, ct.dispatcher.PgxPool)
 }
 
-func (td *CurrencyTests) setup(t *rapid.T, fx CreateCurrencyValidFixture) {
-	td.clock.Current = fx.Clock
-	_, err := td.dispatcher.CreateCurrency(td.ctx, fx.CreateCurrency)
+func (ct *CurrencyTests) setup(t *rapid.T, fx CreateCurrencyValidFixture) {
+	ct.clock.Current = fx.Clock
+	_, err := ct.dispatcher.CreateCurrency(ct.ctx, fx.CreateCurrency)
 	require.NoError(t, err)
 }
 
-func (td *CurrencyTests) TestCreateCurrencyValid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestCreateCurrencyValid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genCreateCurrencyValid().Draw(t, "fx")
 
-		td.setup(t, fx)
+		ct.setup(t, fx)
 
-		c, err := td.dispatcher.GetCurrency(td.ctx, fx.GetCurrecy)
+		c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.GetCurrecy)
 		require.NoError(t, err)
 		assert.Equal(t, fx.CreateCurrency.ID, c.ID)
 		assert.Equal(t, fx.CreateCurrency.Code, c.Code)
 	})
 }
 
-func (td *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genCreateCurrencyDuplicateIDInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
+		ct.setup(t, fx.Base)
 
-		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.CreateCurrency)
+		_, err := ct.dispatcher.CreateCurrency(ct.ctx, fx.CreateCurrency)
 
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
@@ -75,13 +75,13 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestCreateCurrencyDuplicateCodeInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestCreateCurrencyDuplicateCodeInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genCreateCurrencyDuplicateCodeInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
+		ct.setup(t, fx.Base)
 
-		_, err := td.dispatcher.CreateCurrency(td.ctx, fx.CreateCurrency)
+		_, err := ct.dispatcher.CreateCurrency(ct.ctx, fx.CreateCurrency)
 
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
@@ -91,17 +91,17 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateCodeInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestAddExchangeRateFromDateBoundary() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestAddExchangeRateFromDateBoundary() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genAddExchangeRateFromDateBoundary().Draw(t, "fx")
-		td.setup(t, fx.Base)
+		ct.setup(t, fx.Base)
 
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
-			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrecy)
 			require.NoError(t, err)
 			require.Len(t, c.ExchangeRates, 1)
 			e := c.ExchangeRates[0]
@@ -116,15 +116,15 @@ func (td *CurrencyTests) TestAddExchangeRateFromDateBoundary() {
 	})
 }
 
-func (td *CurrencyTests) TestAddExchangeRateDuplicateFromInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestAddExchangeRateDuplicateFromInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genAddExchangeRateDuplicateFromInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate1)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate1)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate2)
+		_, err = ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate2)
 
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
@@ -134,19 +134,19 @@ func (td *CurrencyTests) TestAddExchangeRateDuplicateFromInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestUpdateExchangeRateFromDateBoundary() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestUpdateExchangeRateFromDateBoundary() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genUpdateExchangeRateFromDateBoundary().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.UpdateExchangeRate(td.ctx, fx.UpdateExchangeRate)
+		_, err = ct.dispatcher.UpdateExchangeRate(ct.ctx, fx.UpdateExchangeRate)
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
-			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrecy)
 			require.NoError(t, err)
 			e := c.ExchangeRates[0]
 			assert.Equal(t, fx.UpdateExchangeRate.ID, e.ID)
@@ -160,15 +160,15 @@ func (td *CurrencyTests) TestUpdateExchangeRateFromDateBoundary() {
 	})
 }
 
-func (td *CurrencyTests) TestUpdateExchangeRateIDInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestUpdateExchangeRateIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genUpdateExchangeRateIDInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.UpdateExchangeRate(td.ctx, fx.UpdateExchangeRate)
+		_, err = ct.dispatcher.UpdateExchangeRate(ct.ctx, fx.UpdateExchangeRate)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
@@ -178,15 +178,15 @@ func (td *CurrencyTests) TestUpdateExchangeRateIDInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestUpdateExchangeRateCodeInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestUpdateExchangeRateCodeInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genUpdateExchangeRateCodeInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.UpdateExchangeRate(td.ctx, fx.UpdateExchangeRate)
+		_, err = ct.dispatcher.UpdateExchangeRate(ct.ctx, fx.UpdateExchangeRate)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
@@ -196,15 +196,15 @@ func (td *CurrencyTests) TestUpdateExchangeRateCodeInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestUpdateExchangeRateUnchangedInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestUpdateExchangeRateUnchangedInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genUpdateExchangeRateUnchangedInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.UpdateExchangeRate(td.ctx, fx.UpdateExchangeRate)
+		_, err = ct.dispatcher.UpdateExchangeRate(ct.ctx, fx.UpdateExchangeRate)
 
 		var e *core.DomainError
 		require.ErrorAs(t, err, &e)
@@ -212,22 +212,22 @@ func (td *CurrencyTests) TestUpdateExchangeRateUnchangedInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestRemoveCurrencyFromDateBoundary() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestRemoveCurrencyFromDateBoundary() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genRemoveCurrencyFromDateBoundary().Draw(t, "fx")
-		td.setup(t, fx.Base)
+		ct.setup(t, fx.Base)
 		if fx.AddExchangeRate != nil {
-			_, err := td.dispatcher.AddExchangeRate(td.ctx, *fx.AddExchangeRate)
+			_, err := ct.dispatcher.AddExchangeRate(ct.ctx, *fx.AddExchangeRate)
 			require.NoError(t, err)
-			td.clock.Current = *fx.RemoveClock
+			ct.clock.Current = *fx.RemoveClock
 		}
 
-		_, err := td.dispatcher.RemoveCurrency(td.ctx, fx.RemoveCurrency)
+		_, err := ct.dispatcher.RemoveCurrency(ct.ctx, fx.RemoveCurrency)
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
-			_, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			_, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrecy)
 			require.Error(t, err)
 		} else {
 			var e *core.DomainError
@@ -237,12 +237,12 @@ func (td *CurrencyTests) TestRemoveCurrencyFromDateBoundary() {
 	})
 }
 
-func (td *CurrencyTests) TestRemoveCurrencyCodeInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestRemoveCurrencyCodeInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genRemoveCurrencyCodeInvalid().Draw(t, "fx")
 
-		_, err := td.dispatcher.RemoveCurrency(td.ctx, fx.RemoveCurrencyCommand)
+		_, err := ct.dispatcher.RemoveCurrency(ct.ctx, fx.RemoveCurrencyCommand)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
@@ -252,20 +252,20 @@ func (td *CurrencyTests) TestRemoveCurrencyCodeInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestRemoveExchangeRateFromDateBoundary() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestRemoveExchangeRateFromDateBoundary() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genRemoveExchangeRateFromDateBoundary().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
-		td.clock.Current = fx.RemoveClock
+		ct.clock.Current = fx.RemoveClock
 
-		_, err = td.dispatcher.RemoveExchangeRate(td.ctx, fx.RemoveExchangeRate)
+		_, err = ct.dispatcher.RemoveExchangeRate(ct.ctx, fx.RemoveExchangeRate)
 
 		if fx.ShouldPass {
 			require.NoError(t, err)
-			c, err := td.dispatcher.GetCurrency(td.ctx, fx.Base.GetCurrecy)
+			c, err := ct.dispatcher.GetCurrency(ct.ctx, fx.Base.GetCurrecy)
 			require.NoError(t, err)
 			require.Len(t, c.ExchangeRates, 0)
 		} else {
@@ -276,15 +276,15 @@ func (td *CurrencyTests) TestRemoveExchangeRateFromDateBoundary() {
 	})
 }
 
-func (td *CurrencyTests) TestRemoveExchangeRateCodeInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestRemoveExchangeRateCodeInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genRemoveExchangeRateCodeInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.RemoveExchangeRate(td.ctx, fx.RemoveExchangeRate)
+		_, err = ct.dispatcher.RemoveExchangeRate(ct.ctx, fx.RemoveExchangeRate)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
@@ -294,15 +294,15 @@ func (td *CurrencyTests) TestRemoveExchangeRateCodeInvalid() {
 	})
 }
 
-func (td *CurrencyTests) TestRemoveExchangeRateIDInvalid() {
-	rapid.Check(td.T(), func(t *rapid.T) {
-		td.cleanUp()
+func (ct *CurrencyTests) TestRemoveExchangeRateIDInvalid() {
+	rapid.Check(ct.T(), func(t *rapid.T) {
+		ct.cleanUp()
 		fx := genRemoveExchangeRateIDInvalid().Draw(t, "fx")
-		td.setup(t, fx.Base)
-		_, err := td.dispatcher.AddExchangeRate(td.ctx, fx.AddExchangeRate)
+		ct.setup(t, fx.Base)
+		_, err := ct.dispatcher.AddExchangeRate(ct.ctx, fx.AddExchangeRate)
 		require.NoError(t, err)
 
-		_, err = td.dispatcher.RemoveExchangeRate(td.ctx, fx.RemoveExchangeRate)
+		_, err = ct.dispatcher.RemoveExchangeRate(ct.ctx, fx.RemoveExchangeRate)
 
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)

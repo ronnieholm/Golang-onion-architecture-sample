@@ -91,6 +91,38 @@ one wins". The concurrency token is a row version field included with the update
 query. If version matches, records weren't changed by another transaction since
 last read.
 
+## Properties based tests
+
+Going from example based tests to property based tests is straightforward. For
+each example based test, a matching fixture type may be defined to hold what
+would be the specific values of the example based test. Except with property
+based testing, the fixture is generated, so many examples are generated.
+
+Compared to example based tests, property based tests require a set of
+generators to be defined. One for fixture and one for each type making up the
+fixture. It's a trade-off between specific values (a single implicit fixture)
+and 100 explicit fixtures being generated for each test.
+
+Example based tests have a tendency to pollute the invariants being tested
+because of all the specific values. While propety based tests requires more code
+to define each generator, tests more cleanly communicate the invariants being
+tested, because no specific values are present. A portion of the code for
+setting up specific values have moved to generators.
+
+The next leap from property based tests to state machine tests require more
+thought. Because with property based tests, data and updated clock may be part
+of a fixture to test specific behavior, such as the inability to remove data in
+the past. To test the same behavior in a state machine testq requires not only
+being able to identify currencies/exchange rates that satisfy the precondition,
+without repeating logic for system under test, but also to have
+currency/exchange rates be created in a previous step such that sometimes the
+precondition is fulfilled.
+
+Ensuring all steps of the state machine execute, combined with the clock ticking
+with each step is challenging. Especially if the clock has to be monotonically
+increasing to represent a real world use case. Allowing clock to skip back and
+forth in time simplies the case, but sacrifices realism.
+
 ## References
 
 - PGX Top to Bottom by Jack Christensen
@@ -98,3 +130,4 @@ last read.
 - Writing Clean and Efficient Table-Driven Unit Tests in Go
   - https://semaphore.io/blog/table-driven-unit-tests-go
 
+- Don't write tests, generate them.
