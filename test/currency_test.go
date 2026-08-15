@@ -69,7 +69,7 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateIDInvalid() {
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "Currency", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.CreateCurrency.ID.String(), e.FieldValues["ID"])
 	})
 }
@@ -85,7 +85,7 @@ func (td *CurrencyTests) TestCreateCurrencyDuplicateCodeInvalid() {
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "Currency", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.CreateCurrency.Code, e.FieldValues["Code"])
 	})
 }
@@ -128,7 +128,7 @@ func (td *CurrencyTests) TestAddExchangeRateDuplicateFromInvalid() {
 		var e *core.ConflictError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "ExchangeRate", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.AddExchangeRate2.From.String(), e.FieldValues["From"])
 	})
 }
@@ -190,7 +190,7 @@ func (td *CurrencyTests) TestUpdateExchangeRateCodeInvalid() {
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "Currency", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.UpdateExchangeRate.Code, e.FieldValues["Code"])
 	})
 }
@@ -246,7 +246,7 @@ func (td *CurrencyTests) TestRemoveCurrencyCodeInvalid() {
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "Currency", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.RemoveCurrencyCommand.Code, e.FieldValues["Code"])
 	})
 }
@@ -288,7 +288,7 @@ func (td *CurrencyTests) TestRemoveExchangeRateCodeInvalid() {
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "Currency", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.RemoveExchangeRate.Code, e.FieldValues["Code"])
 	})
 }
@@ -306,7 +306,7 @@ func (td *CurrencyTests) TestRemoveExchangeRateIDInvalid() {
 		var e *core.NotFoundError
 		require.ErrorAs(t, err, &e)
 		assert.Equal(t, "ExchangeRate", e.Entity)
-		assert.Equal(t, 1, len(e.FieldValues))
+		require.Equal(t, 1, len(e.FieldValues))
 		assert.Equal(t, fx.RemoveExchangeRate.ID.String(), e.FieldValues["ID"])
 	})
 }
